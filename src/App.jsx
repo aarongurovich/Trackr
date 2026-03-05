@@ -4,12 +4,15 @@ import './App.css';
 
 export default function App() {
   const [session, setSession] = useState(() => {
-    // Only store non-sensitive profile data (name, email, avatar) in localStorage
     const saved = localStorage.getItem('trackr_profile');
     return saved ? JSON.parse(saved) : null;
   });
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  const [emails, setEmails] = useState(null);
+  const [isFetchingEmails, setIsFetchingEmails] = useState(false);
 
   useEffect(() => {
     /* global google */
@@ -22,7 +25,7 @@ export default function App() {
 
         google.accounts.id.renderButton(
           document.getElementById("googleBtn"),
-          { theme: "outline", size: "large", width: "100%", shape: "pill" }
+          { theme: "outline", size: "large", width: "350", shape: "pill" }
         );
       }
     };
@@ -39,7 +42,6 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      // Supabase invoke will now receive the Set-Cookie header from the server
       const { data, error: funcError } = await supabase.functions.invoke('auth-handler', {
         body: { idToken: response.credential, action: 'google-login' }
       });
@@ -47,7 +49,6 @@ export default function App() {
       if (funcError) throw new Error(funcError.message);
       if (data?.error) throw new Error(data.error);
 
-      // Save user profile data ONLY. The sessionToken is handled as an HttpOnly cookie by the browser.
       const profileData = { ...data.user };
       localStorage.setItem('trackr_profile', JSON.stringify(profileData));
       setSession(profileData);
@@ -58,30 +59,82 @@ export default function App() {
     }
   };
 
-  const handleSignOut = () => {
-    // Clear profile from storage
-    localStorage.removeItem('trackr_profile');
-    setSession(null);
-    // Note: To clear the HttpOnly cookie, you should call a backend 'logout' function
-    // that returns a Set-Cookie header with an expired date.
+  const handleSignOut = async () => {
+    try {
+      await supabase.functions.invoke('sign-out');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      localStorage.removeItem('trackr_profile');
+      setSession(null);
+      setEmails(null);
+    }
+  };
+
+  const handleConnectGmail = () => {
+    if (!window.google) return;
+    setError(null);
+
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/gmail.readonly', 
+      callback: async (tokenResponse) => {
+        if (tokenResponse && tokenResponse.access_token) {
+          setIsFetchingEmails(true);
+          try {
+            const { data, error } = await supabase.functions.invoke('fetch-emails', {
+              body: { accessToken: tokenResponse.access_token }
+            });
+            
+            if (error) throw new Error(error.message);
+            if (data?.emails) setEmails(data.emails);
+          } catch (err) {
+            setError(err.message);
+          } finally {
+            setIsFetchingEmails(false);
+          }
+        }
+      },
+    });
+
+    client.requestAccessToken();
   };
 
   if (session) {
     return (
       <div className="app-container">
-        <div className="glass-panel">
+        <div className="glass-panel" style={{ width: '100%', maxWidth: '800px' }}>
           <div className="header">
-            <div className="logo-mark"></div>
             <h1 className="logo-text">TRACKR</h1>
           </div>
+          
           <div className="profile-section">
-            {session.avatar_url && (
-              <img src={session.avatar_url} alt="Profile" className="avatar" />
-            )}
-            <p className="user-name">Welcome, {session.full_name || 'User'}</p>
-            <p className="subtitle">{session.email}</p>
+            <p className="user-name">{session.email}</p>
           </div>
-          <button className="btn-primary" onClick={handleSignOut}>Sign Out</button>
+
+          {error && <div className="error-box">{error}</div>}
+
+          <div style={{ margin: '2rem 0', textAlign: 'center' }}>
+            <button 
+              className="btn-primary" 
+              onClick={handleConnectGmail} 
+              disabled={isFetchingEmails}
+            >
+              {isFetchingEmails ? 'Fetching...' : 'Fetch Emails'}
+            </button>
+
+            {emails && (
+              <div style={{ marginTop: '1.5rem', textAlign: 'left', background: '#1e1e1e', color: '#d4d4d4', padding: '1rem', borderRadius: '8px', overflowX: 'auto' }}>
+                <pre style={{ margin: 0, fontSize: '0.875rem' }}>
+                  {JSON.stringify(emails, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+
+          <button className="btn-primary" onClick={handleSignOut}>
+            Sign Out
+          </button>
         </div>
       </div>
     );
@@ -91,14 +144,8 @@ export default function App() {
     <div className="app-container">
       <div className="glass-panel">
         <div className="header">
-          <div className="logo-mark"></div>
           <h1 className="logo-text">TRACKR</h1>
         </div>
-        <div className="form-header">
-          <h2>Sign In</h2>
-          <p className="subtitle">Securely access your dashboard using Google.</p>
-        </div>
-        {error && <div className="error-box">{error}</div>}
         <div id="googleBtn"></div>
         {loading && <p className="loading-text">Verifying account...</p>}
       </div>
