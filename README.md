@@ -1,4 +1,4 @@
-# Refloe (Trackr)
+# Refloe
 
 Refloe is an AI-powered job application tracker that puts your search on autopilot. By connecting to your Gmail, it uses AI to scan your inbox, detect job updates, and automatically build a visual pipeline of your applications.
 
