@@ -26,6 +26,8 @@ locals {
     SUPABASE_KEY         = var.supabase_key
     GOOGLE_CLIENT_ID     = var.google_client_id
     GOOGLE_CLIENT_SECRET = var.google_client_secret
+    MICROSOFT_CLIENT_ID     = var.microsoft_client_id
+    MICROSOFT_CLIENT_SECRET = var.microsoft_client_secret
   }
 }
 
@@ -138,16 +140,4 @@ resource "aws_iam_role_policy" "sqs_access" {
       }
     ]
   })
-}
-
-# --- 10. Lambda Function URL (For instant triggering) ---
-resource "aws_lambda_function_url" "fetcher_url" {
-  # Note: Resource name changed to email_fetcher to match your previous code
-  function_name      = aws_lambda_function.email_fetcher.function_name
-  authorization_type = "NONE"
-}
-
-# Output the URL so you can add it to your Supabase secrets
-output "fetcher_function_url" {
-  value = aws_lambda_function_url.fetcher_url.function_url
 }

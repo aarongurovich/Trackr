@@ -108,6 +108,7 @@ Deno.serve(async (req) => {
         email: authData.user.email,
         full_name: authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || '',
         google_access_token: tokenData.access_token,
+        preferred_provider: 'google',
         last_login: new Date().toISOString()
       }
 
@@ -125,6 +126,90 @@ Deno.serve(async (req) => {
       }
 
       // 6. Return the native Supabase session AND the new user flag to React
+      return new Response(JSON.stringify({ 
+        user: authData.user,
+        session: authData.session,
+        is_new_user: isNewUser
+      }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 
+      })
+    }
+
+    // NEW ACTION: Handle Outlook Login
+    if (action === 'outlook-login') {
+      console.log(`Processing outlook-login for code: ${code?.substring(0, 5)}...`)
+
+      const MS_CLIENT_ID = Deno.env.get('VITE_MICROSOFT_CLIENT_ID')
+      const MS_CLIENT_SECRET = Deno.env.get('VITE_MICROSOFT_CLIENT_SECRET')
+      const REDIRECT_URI = Deno.env.get('REDIRECT_URI')
+
+      if (!code) {
+        throw new Error('Missing authorization code')
+      }
+
+      // 1. Exchange Auth Code for Tokens with Microsoft
+      const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: MS_CLIENT_ID!,
+          scope: 'openid profile email Mail.Read offline_access',
+          code: code!,
+          redirect_uri: REDIRECT_URI!,
+          grant_type: 'authorization_code',
+          client_secret: MS_CLIENT_SECRET!,
+        }),
+      });
+
+      const tokenData = await tokenResponse.json();
+      if (!tokenResponse.ok) {
+        console.error("MICROSOFT ERROR DETAIL:", JSON.stringify(tokenData));
+        throw new Error(tokenData.error_description || tokenData.error || 'MS Auth Failed');
+      }
+
+      // 2. Sign in to Supabase Auth using the Azure provider
+      const { data: authData, error: authError } = await supabase.auth.signInWithIdToken({
+        provider: 'azure',
+        token: tokenData.id_token,
+      })
+
+      if (authError) {
+        console.error("Supabase Auth Error:", authError)
+        throw authError
+      }
+
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', authData.user.id)
+        .maybeSingle()
+        
+      const isNewUser = !existingUser;
+
+      // 3. Store/Update the user record with Microsoft tokens
+      const updatePayload: any = {
+        id: authData.user.id,
+        email: authData.user.email,
+        full_name: authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || '',
+        outlook_access_token: tokenData.access_token,
+        preferred_provider: 'outlook',
+        last_login: new Date().toISOString()
+      }
+
+      if (tokenData.refresh_token) {
+        updatePayload.outlook_refresh_token = tokenData.refresh_token;
+      }
+
+      const { error: dbError } = await supabase
+        .from('users')
+        .upsert(updatePayload, { onConflict: 'email' })
+
+      if (dbError) {
+        console.error("Database Upsert Error:", dbError)
+        throw dbError
+      }
+
       return new Response(JSON.stringify({ 
         user: authData.user,
         session: authData.session,

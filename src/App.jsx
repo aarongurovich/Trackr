@@ -70,7 +70,7 @@ const STATUS_CONFIG = {
 };
 
 // ─── Hero / Landing page ──────────────────────────────────────────────────────
-function HeroPage({ onGetStarted, loading }) {
+function HeroPage({ onGetStarted, onOutlookLogin, loading }) {
   const stats = [
     { value: '2 min', label: 'Average setup' },
     { value: '100%', label: 'Auto-tracked' },
@@ -106,21 +106,34 @@ function HeroPage({ onGetStarted, loading }) {
         </h1>
 
         <p className="hero-sub">
-          Connect Gmail. Let AI do the work. Never lose track of an application again —
+          Connect Gmail or Outlook. Let AI do the work. Never lose track of an application again —
           Refloe scans your emails and builds your pipeline automatically.
         </p>
 
-        <div className="hero-cta-group">
-          <button className="btn-hero-primary" onClick={onGetStarted} disabled={loading}>
-            {loading ? (
-              <span className="btn-loading">Verifying…</span>
-            ) : (
-              <>
-                <span>Sign in with Google</span>
-                <Icon.ArrowRight />
-              </>
-            )}
-          </button>
+        <div className="hero-cta-group" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button className="btn-hero-primary" onClick={onGetStarted} disabled={loading}>
+              {loading ? (
+                <span className="btn-loading">Verifying…</span>
+              ) : (
+                <>
+                  <span>Sign in with Google</span>
+                  <Icon.ArrowRight />
+                </>
+              )}
+            </button>
+
+            <button className="btn-hero-secondary" onClick={onOutlookLogin} disabled={loading} style={{ backgroundColor: '#2f2f2f', color: 'white', border: '1px solid #444', padding: '0.8rem 1.5rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: '500' }}>
+              {loading ? (
+                <span className="btn-loading">Verifying…</span>
+              ) : (
+                <>
+                  <span>Sign in with Outlook</span>
+                  <Icon.ArrowRight />
+                </>
+              )}
+            </button>
+          </div>
           <p className="cta-footnote">Free to use · No credit card required</p>
         </div>
 
@@ -341,6 +354,58 @@ export default function App() {
     client.requestCode();
   };
 
+  // 1.5. NEW: Initial Microsoft Login Trigger
+  const handleOutlookLogin = () => {
+    const client_id = import.meta.env.VITE_MICROSOFT_CLIENT_ID;
+    const redirect_uri = encodeURIComponent(import.meta.env.VITE_REDIRECT_URI);
+    const scope = encodeURIComponent("openid profile email Mail.Read offline_access");
+    const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${client_id}&response_type=code&redirect_uri=${redirect_uri}&response_mode=query&scope=${scope}`;
+
+    const width = 600, height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+
+    const popup = window.open(authUrl, "outlook_login", `width=${width},height=${height},left=${left},top=${top}`);
+
+    const checkPayload = setInterval(async () => {
+      try {
+        if (popup.location.href.includes("code=")) {
+          const urlParams = new URLSearchParams(popup.location.search);
+          const code = urlParams.get("code");
+          popup.close();
+          clearInterval(checkPayload);
+
+          setLoading(true);
+          const { data, error: funcError } = await supabase.functions.invoke('auth-handler', {
+            body: { code, action: 'outlook-login' }
+          });
+          
+          if (funcError || data?.error) {
+            console.error("Auth Error:", funcError?.message || data?.error);
+            setLoading(false);
+            return;
+          }
+
+          if (data.is_new_user) {
+            setTempAuth(data);
+          } else {
+            if (data.session) {
+              await supabase.auth.setSession({
+                access_token: data.session.access_token,
+                refresh_token: data.session.refresh_token
+              });
+            }
+            setSession(data.user);
+            localStorage.setItem('Refloe_profile', JSON.stringify(data.user));
+          }
+          setLoading(false);
+        }
+      } catch (e) { 
+        // Ignore cross-origin errors until redirect completes back to our domain
+      }
+    }, 500);
+  };
+
   // 2. Finalize Signup after user selects history months
   const handleConfirmHistory = async (months) => {
     setLoading(true);
@@ -413,6 +478,7 @@ export default function App() {
   return (
     <HeroPage 
       onGetStarted={handleGetStarted} 
+      onOutlookLogin={handleOutlookLogin}
       loading={loading} 
     />
   );
