@@ -139,3 +139,15 @@ resource "aws_iam_role_policy" "sqs_access" {
     ]
   })
 }
+
+# --- 10. Lambda Function URL (For instant triggering) ---
+resource "aws_lambda_function_url" "fetcher_url" {
+  # Note: Resource name changed to email_fetcher to match your previous code
+  function_name      = aws_lambda_function.email_fetcher.function_name
+  authorization_type = "NONE"
+}
+
+# Output the URL so you can add it to your Supabase secrets
+output "fetcher_function_url" {
+  value = aws_lambda_function_url.fetcher_url.function_url
+}

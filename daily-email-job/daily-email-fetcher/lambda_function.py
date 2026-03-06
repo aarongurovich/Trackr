@@ -31,11 +31,24 @@ def handler(event, context):
     Main handler for fetching emails. 
     Supports both daily incremental scans and historical deep scans.
     """
-    # Determine the target user. Defaults to hardcoded ID if not in event.
-    user_id = event.get("user_id")
+    # Check if triggered via HTTP Function URL (payload is inside 'body')
+    if "body" in event and event["body"]:
+        try:
+            body_data = json.loads(event["body"])
+            user_id = body_data.get("user_id")
+            is_debug = body_data.get("debug") is True
+        except Exception:
+            user_id = None
+            is_debug = False
+    else:
+        # Check if triggered via standard direct invocation (like CloudWatch Cron or Test events)
+        user_id = event.get("user_id")
+        is_debug = event.get("debug") is True
     
-    # Check if debug mode is enabled
-    is_debug = event.get("debug") is True
+    # Fail safely if no user ID is found
+    if not user_id:
+        print("No user_id provided. Exiting.")
+        return {"statusCode": 400, "body": "Error: user_id is required."}
 
     # 1. Debug Mode: Send static test records for development
     if is_debug:
@@ -69,11 +82,17 @@ def handler(event, context):
         # Fetch user's refresh token and historical scan preference from Supabase
         user_resp = supabase.table("users").select("refresh_token, scan_history_months").eq("id", user_id).single().execute()
         refresh_token = user_resp.data.get('refresh_token')
-        months = user_resp.data.get('scan_history_months', 0)
+        months = user_resp.data.get('scan_history_months', 0) or 0
 
         # Build Gmail search query. 
         # If months > 0, we scan a deep historical range; otherwise, scan the last 24 hours.
-        time_query = f"{months * 30}d" if months > 0 else "1d"
+        if months > 0:
+            time_query = f"{months * 30}d"
+            print(f"NEW USER DETECTED: Performing one-time {months} month historical scan for {user_id}")
+        else:
+            time_query = "1d"
+            print(f"EXISTING USER: Performing standard 24-hour incremental scan for {user_id}")
+            
         gmail_q = f"newer_than:{time_query}"
 
         if refresh_token:
