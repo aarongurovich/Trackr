@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import './App.css';
 
-// ─── tiny lucide-style inline SVGs ────────────────────────────────────────────
 const Icon = {
   Briefcase: () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -69,7 +68,6 @@ const STATUS_CONFIG = {
   ghosted:    { label: 'Ghosted',    color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
 };
 
-// ─── Hero / Landing page ──────────────────────────────────────────────────────
 function HeroPage({ onGetStarted, onOutlookLogin, loading }) {
   const stats = [
     { value: '2 min', label: 'Average setup' },
@@ -151,7 +149,6 @@ function HeroPage({ onGetStarted, onOutlookLogin, loading }) {
   );
 }
 
-// ─── History Prompt Page ──────────────────────────────────────────────────────
 function HistoryPage({ onConfirm, loading }) {
   return (
     <div className="hero-root">
@@ -172,7 +169,6 @@ function HistoryPage({ onConfirm, loading }) {
   );
 }
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
 function Dashboard({ session, onSignOut, isFetchingEmails }) {
   const [apps, setApps] = useState([]);
   const [loadingDb, setLoadingDb] = useState(true);
@@ -298,7 +294,6 @@ function Dashboard({ session, onSignOut, isFetchingEmails }) {
   );
 }
 
-// ─── Root App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [session, setSession] = useState(() => {
     const saved = localStorage.getItem('Refloe_profile');
@@ -308,7 +303,6 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [isFetchingEmails, setIsFetchingEmails] = useState(false);
 
-  // 1. Initial Google Login Trigger
   const handleGetStarted = () => {
     if (!window.google) return;
 
@@ -328,11 +322,9 @@ export default function App() {
             
             if (funcError || data?.error) throw new Error(funcError?.message || data?.error);
 
-            // LOGIC CHANGE: Check if new or returning user
             if (data.is_new_user) {
-              setTempAuth(data); // Brand new user -> Show History Prompt
+              setTempAuth(data);
             } else {
-              // Returning user -> Log them in directly!
               if (data.session) {
                 await supabase.auth.setSession({
                   access_token: data.session.access_token,
@@ -354,66 +346,101 @@ export default function App() {
     client.requestCode();
   };
 
-  // 1.5. NEW: Initial Microsoft Login Trigger
   const handleOutlookLogin = () => {
     const client_id = import.meta.env.VITE_MICROSOFT_CLIENT_ID;
-    const redirect_uri = encodeURIComponent(import.meta.env.VITE_REDIRECT_URI);
-    const scope = encodeURIComponent("openid profile email Mail.Read offline_access");
-    const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${client_id}&response_type=code&redirect_uri=${redirect_uri}&response_mode=query&scope=${scope}`;
+    const redirect_uri = import.meta.env.VITE_REDIRECT_URI;
+    
+    if (!client_id || !redirect_uri) {
+      console.error("Missing Microsoft Client ID or Redirect URI in environment variables.");
+      alert("Configuration Error: Missing Client ID or Redirect URI.");
+      return;
+    }
 
+    const encoded_redirect = encodeURIComponent(redirect_uri);
+    const scope = encodeURIComponent("openid profile email Mail.Read offline_access");
+  
+    // ADD &prompt=consent TO THIS URL
+    const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${client_id}&response_type=code&redirect_uri=${encoded_redirect}&response_mode=query&scope=${scope}&prompt=consent`;
     const width = 600, height = 700;
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top = window.screenY + (window.outerHeight - height) / 2;
 
     const popup = window.open(authUrl, "outlook_login", `width=${width},height=${height},left=${left},top=${top}`);
+    
+    if (!popup) {
+      alert("Popup blocked. Please allow popups for this site.");
+      return;
+    }
+
+    setLoading(true);
 
     const checkPayload = setInterval(async () => {
       try {
-        if (popup.location.href.includes("code=")) {
-          const urlParams = new URLSearchParams(popup.location.search);
-          const code = urlParams.get("code");
+        // MOVED INSIDE THE TRY BLOCK: Safely check if closed or ignore COOP errors
+        if (popup.closed) {
+          clearInterval(checkPayload);
+          setLoading(false);
+          return;
+        }
+
+        const currentUrl = popup.location.href;
+        
+        if (currentUrl && (currentUrl.includes("code=") || currentUrl.includes("error="))) {
+          const codeMatch = currentUrl.match(/code=([^&]+)/);
+          const errorMatch = currentUrl.match(/error=([^&]+)/);
+          const errorDescMatch = currentUrl.match(/error_description=([^&]+)/);
+          
+          const code = codeMatch ? decodeURIComponent(codeMatch[1]) : null;
+          const error = errorMatch ? decodeURIComponent(errorMatch[1]) : null;
+          const errorDesc = errorDescMatch ? decodeURIComponent(errorDescMatch[1].replace(/\+/g, ' ')) : 'No description';
+          
           popup.close();
           clearInterval(checkPayload);
 
-          setLoading(true);
-          const { data, error: funcError } = await supabase.functions.invoke('auth-handler', {
-            body: { code, action: 'outlook-login' }
-          });
-          
-          if (funcError || data?.error) {
-            console.error("Auth Error:", funcError?.message || data?.error);
+          if (error) {
+            console.error("Microsoft Auth Error:", error, errorDesc);
+            alert(`Microsoft Sign-In Error: ${errorDesc}`);
             setLoading(false);
             return;
           }
 
-          if (data.is_new_user) {
-            setTempAuth(data);
-          } else {
-            if (data.session) {
-              await supabase.auth.setSession({
-                access_token: data.session.access_token,
-                refresh_token: data.session.refresh_token
-              });
+          if (code) {
+            const { data, error: funcError } = await supabase.functions.invoke('auth-handler', {
+              body: { code, action: 'outlook-login' }
+            });
+            
+            if (funcError || data?.error) {
+              console.error("Auth Error:", funcError?.message || data?.error);
+              setLoading(false);
+              return;
             }
-            setSession(data.user);
-            localStorage.setItem('Refloe_profile', JSON.stringify(data.user));
+
+            if (data.is_new_user) {
+              setTempAuth(data);
+            } else {
+              if (data.session) {
+                await supabase.auth.setSession({
+                  access_token: data.session.access_token,
+                  refresh_token: data.session.refresh_token
+                });
+              }
+              setSession(data.user);
+              localStorage.setItem('Refloe_profile', JSON.stringify(data.user));
+            }
+            setLoading(false);
           }
-          setLoading(false);
         }
       } catch (e) { 
-        // Ignore cross-origin errors until redirect completes back to our domain
+        // Silently catch cross-origin DOMExceptions until redirect occurs
       }
     }, 500);
   };
 
-  // 2. Finalize Signup after user selects history months
   const handleConfirmHistory = async (months) => {
     setLoading(true);
-    // We set this to true so the dashboard can show a "Scanning..." state immediately
     setIsFetchingEmails(true); 
     
     try {
-      // Notify the backend to update the user's scan preference
       const { error: scanError } = await supabase.functions.invoke('auth-handler', {
         body: { 
           action: 'trigger-scan', 
@@ -424,7 +451,6 @@ export default function App() {
 
       if (scanError) throw scanError;
       
-      // Establish the Supabase session so RLS policies allow data fetching
       if (tempAuth.session) {
         await supabase.auth.setSession({
           access_token: tempAuth.session.access_token,
@@ -432,15 +458,13 @@ export default function App() {
         });
       }
 
-      // Move user to the Dashboard
       setSession(tempAuth.user);
       localStorage.setItem('Refloe_profile', JSON.stringify(tempAuth.user));
-      setTempAuth(null); // Clear temp state
+      setTempAuth(null); 
     } catch (err) {
       console.error("History Selection Error:", err.message);
     } finally {
       setLoading(false);
-      // We keep isFetchingEmails true for a moment or let the Dashboard handle the live state
       setIsFetchingEmails(false);
     }
   };
@@ -452,10 +476,6 @@ export default function App() {
     setTempAuth(null);
   };
 
-  // Rendering Logic:
-  // 1. If session exists, show Dashboard.
-  // 2. If tempAuth exists (meaning they logged in but haven't picked months), show HistoryPage.
-  // 3. Otherwise, show the Hero/Landing page.
   if (session) {
     return (
       <Dashboard 

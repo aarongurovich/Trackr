@@ -33,15 +33,30 @@ Deno.serve(async (req) => {
 
       if (updateError) throw updateError
 
-      // 2. INSTANT FIRE: Trigger the AWS Lambda in the background!
-      // Notice there is NO 'await' here. We want to fire and forget so the UI doesn't hang.
+      // --- THE FIX IS HERE ---
       const lambdaUrl = Deno.env.get('LAMBDA_FETCHER_URL');
-      if (lambdaUrl) {
-        fetch(lambdaUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: userId })
-        }).catch(err => console.error("Failed to trigger Lambda:", err));
+      
+      if (!lambdaUrl) {
+        console.error("CRITICAL: LAMBDA_FETCHER_URL is not set in Supabase Secrets!");
+      } else {
+        console.log(`Sending trigger request to Lambda...`);
+        try {
+          // You MUST await this. Otherwise the Edge Function dies before the request sends.
+          const lambdaRes = await fetch(lambdaUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId })
+          });
+          
+          console.log(`Lambda HTTP Status: ${lambdaRes.status}`);
+          
+          if (!lambdaRes.ok) {
+            const errorText = await lambdaRes.text();
+            console.error(`Lambda rejected the request: ${errorText}`);
+          }
+        } catch (err) {
+          console.error("Failed to connect to Lambda:", err.message);
+        }
       }
 
       return new Response(JSON.stringify({ success: true }), { 
