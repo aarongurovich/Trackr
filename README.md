@@ -54,4 +54,3 @@ The backend infrastructure is automated using Terraform:
 This sets up a CloudWatch rule that triggers the email scan daily at 11:59 PM UTC.
 
 ---
-*Generated based on the Refloe project codebase.*
