@@ -27,13 +27,17 @@ def get_access_token(refresh_token):
     return response.json().get('access_token')
 
 def handler(event, context):
-    # Hardcoded ID for Aaron Gurovich
-    USER_ID = "5e2b7b41-f662-44ef-8ee0-0c6a010fdf4a"
+    """
+    Main handler for fetching emails. 
+    Supports both daily incremental scans and historical deep scans.
+    """
+    # Determine the target user. Defaults to hardcoded ID if not in event.
+    user_id = event.get("user_id")
     
-    # Check if debug mode is enabled in the event object
+    # Check if debug mode is enabled
     is_debug = event.get("debug") is True
 
-    # 1. Debug Mode: Send ONLY static test records
+    # 1. Debug Mode: Send static test records for development
     if is_debug:
         test_cases = [
             "Dear Aaron Gurovich, we are pleased to offer you the position of Software Engineer at Tech Corp!",
@@ -48,36 +52,44 @@ def handler(event, context):
             "Hi, this is a recruiter from OpenAI. We saw your GitHub and want to chat."
         ]
 
-        print(f"DEBUG MODE ENABLED: Sending {len(test_cases)} fake emails to SQS.")
+        print(f"DEBUG MODE ENABLED: Sending {len(test_cases)} fake emails to SQS for user {user_id}.")
         for i, text in enumerate(test_cases):
             payload = {
                 "email_body": text,
                 "source_email_id": f"test-1234{i}",
-                "user_id": USER_ID,
+                "user_id": user_id,
                 "applied_date": datetime.now().strftime('%Y-%m-%d')
             }
             sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json.dumps(payload))
         
         return {"statusCode": 200, "body": "Debug mode: 10 fake emails sent to SQS"}
 
-    # 2. Production Mode: Fetch ONLY real emails from Gmail
+    # 2. Production Mode: Fetch real emails from Gmail
     try:
-        user_resp = supabase.table("users").select("refresh_token").eq("id", USER_ID).single().execute()
+        # Fetch user's refresh token and historical scan preference from Supabase
+        user_resp = supabase.table("users").select("refresh_token, scan_history_months").eq("id", user_id).single().execute()
         refresh_token = user_resp.data.get('refresh_token')
+        months = user_resp.data.get('scan_history_months', 0)
+
+        # Build Gmail search query. 
+        # If months > 0, we scan a deep historical range; otherwise, scan the last 24 hours.
+        time_query = f"{months * 30}d" if months > 0 else "1d"
+        gmail_q = f"newer_than:{time_query}"
 
         if refresh_token:
-            print(f"PRODUCTION MODE: Fetching real emails for user: {USER_ID}")
+            print(f"PRODUCTION MODE: Fetching emails for user: {user_id} with query: {gmail_q}")
             access_token = get_access_token(refresh_token)
             headers = {'Authorization': f'Bearer {access_token}'}
             
-            # Query for emails from the last 24 hours
+            # Fetch message list matching the time query
             msgs_resp = requests.get(
-                "https://www.googleapis.com/gmail/v1/users/me/messages?q=newer_than:1d", 
+                f"https://www.googleapis.com/gmail/v1/users/me/messages?q={gmail_q}", 
                 headers=headers
             ).json()
             
             messages = msgs_resp.get('messages', [])
             for msg_meta in messages:
+                # Fetch specific content for each message found
                 msg_data = requests.get(
                     f"https://www.googleapis.com/gmail/v1/users/me/messages/{msg_meta['id']}", 
                     headers=headers
@@ -86,19 +98,25 @@ def handler(event, context):
                 payload = {
                     "email_body": msg_data.get('snippet', ''),
                     "source_email_id": msg_meta['id'],
-                    "user_id": USER_ID,
+                    "user_id": user_id,
                     "applied_date": datetime.now().strftime('%Y-%m-%d')
                 }
                 
+                # Push email data to SQS for classification
                 sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json.dumps(payload))
+            
+            # If a historical scan was requested, reset the preference column to 0
+            if months > 0:
+                print(f"Resetting scan_history_months for user {user_id} after deep scan.")
+                supabase.table("users").update({"scan_history_months": 0}).eq("id", user_id).execute()
             
             print(f"Sent {len(messages)} real emails to SQS.")
             return {"statusCode": 200, "body": f"Production mode: {len(messages)} real emails processed"}
             
         else:
-            print("No refresh_token found. Cannot fetch real emails.")
+            print(f"No refresh_token found for user {user_id}. Cannot fetch emails.")
             return {"statusCode": 404, "body": "Error: User refresh token not found"}
 
     except Exception as e:
-        print(f"Error fetching real emails: {str(e)}")
+        print(f"Error fetching real emails for user {user_id}: {str(e)}")
         return {"statusCode": 500, "body": f"Error: {str(e)}"}

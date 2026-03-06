@@ -71,12 +71,6 @@ const STATUS_CONFIG = {
 
 // ─── Hero / Landing page ──────────────────────────────────────────────────────
 function HeroPage({ onGetStarted, loading }) {
-  const features = [
-    { icon: <Icon.Mail />, title: 'Email Scanning', desc: 'AI reads your inbox and auto-detects every job-related email instantly.' },
-    { icon: <Icon.Zap />,  title: 'Smart Extraction', desc: 'Company, role, status and dates are pulled automatically — no manual entry.' },
-    { icon: <Icon.TrendingUp />, title: 'Visual Pipeline', desc: 'See every application\'s journey from applied to offer in a clean dashboard.' },
-  ];
-
   const stats = [
     { value: '2 min', label: 'Average setup' },
     { value: '100%', label: 'Auto-tracked' },
@@ -85,7 +79,6 @@ function HeroPage({ onGetStarted, loading }) {
 
   return (
     <div className="hero-root">
-      {/* Animated background mesh */}
       <div className="hero-bg">
         <div className="mesh-blob blob-1" />
         <div className="mesh-blob blob-2" />
@@ -93,7 +86,6 @@ function HeroPage({ onGetStarted, loading }) {
         <div className="grid-overlay" />
       </div>
 
-      {/* Nav */}
       <nav className="hero-nav">
         <span className="nav-logo">Refloe</span>
         <button className="nav-cta" onClick={onGetStarted} disabled={loading}>
@@ -102,7 +94,6 @@ function HeroPage({ onGetStarted, loading }) {
         </button>
       </nav>
 
-      {/* Hero section */}
       <section className="hero-section">
         <div className="hero-badge">
           <Icon.Sparkles />
@@ -133,7 +124,6 @@ function HeroPage({ onGetStarted, loading }) {
           <p className="cta-footnote">Free to use · No credit card required</p>
         </div>
 
-        {/* Stats row */}
         <div className="stats-row">
           {stats.map(s => (
             <div className="stat-item" key={s.label}>
@@ -143,28 +133,44 @@ function HeroPage({ onGetStarted, loading }) {
           ))}
         </div>
       </section>
-
-      {/* Google sign-in button (hidden, used for rendering) */}
       <div id="googleBtn" style={{ display: 'none' }} />
     </div>
   );
 }
 
+// ─── History Prompt Page ──────────────────────────────────────────────────────
+function HistoryPage({ onConfirm, loading }) {
+  return (
+    <div className="hero-root">
+      <div className="hero-bg"><div className="grid-overlay" /></div>
+      <section className="hero-section">
+        <h1 className="hero-headline" style={{ fontSize: '2.5rem' }}>Import your history</h1>
+        <p className="hero-sub">How many months of emails should Refloe scan to build your initial pipeline?</p>
+        <div className="hero-cta-group" style={{ flexDirection: 'row', gap: '1rem', justifyContent: 'center' }}>
+          {[1, 2, 3].map(m => (
+            <button key={m} className="btn-hero-primary" onClick={() => onConfirm(m)} disabled={loading} style={{ padding: '1rem 2rem' }}>
+              {m} Month{m > 1 ? 's' : ''}
+            </button>
+          ))}
+        </div>
+        {loading && <p className="scanning-text" style={{ marginTop: '2rem' }}><Icon.Sparkles /> Preparing your scan...</p>}
+      </section>
+    </div>
+  );
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-function Dashboard({ session, onSignOut, isFetchingEmails, error }) {
+function Dashboard({ session, onSignOut, isFetchingEmails }) {
   const [apps, setApps] = useState([]);
   const [loadingDb, setLoadingDb] = useState(true);
 
   useEffect(() => {
     if (!session || !session.id) {
-      console.log("Waiting for session ID...");
       setLoadingDb(false);
       return;
     }
 
     let isMounted = true;
-    console.log("Session ready, fetching data for:", session.id);
-
     const formatAppData = (data) => data.map(app => ({
       id: app.id,
       company: app.company_name || 'Unknown Company',
@@ -182,14 +188,8 @@ function Dashboard({ session, onSignOut, isFetchingEmails, error }) {
         .eq('user_id', session.id)
         .order('applied_date', { ascending: false });
 
-      console.log("Supabase response:", { data, dbError });
-
       if (isMounted) {
-        if (dbError) {
-          console.error("Database fetch error:", dbError);
-        } else if (data) {
-          setApps(formatAppData(data));
-        }
+        if (!dbError && data) setApps(formatAppData(data));
         setLoadingDb(false);
       }
     };
@@ -198,14 +198,7 @@ function Dashboard({ session, onSignOut, isFetchingEmails, error }) {
 
     const channel = supabase
       .channel('db-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'ai_classifications',
-          filter: `user_id=eq.${session.id}`,
-        },
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ai_classifications', filter: `user_id=eq.${session.id}` },
         (payload) => {
           if (isMounted) {
             setApps((prev) => {
@@ -215,8 +208,7 @@ function Dashboard({ session, onSignOut, isFetchingEmails, error }) {
             });
           }
         }
-      )
-      .subscribe();
+      ).subscribe();
 
     return () => {
       isMounted = false;
@@ -238,16 +230,14 @@ function Dashboard({ session, onSignOut, isFetchingEmails, error }) {
             <h1 className="dash-title">Live Pipeline</h1>
             <p className="dash-sub">
               {isFetchingEmails ? (
-                <span className="scanning-text"><Icon.Sparkles /> AI is scanning your inbox...</span>
+                <span className="scanning-text"><Icon.Sparkles /> AI is scanning your history...</span>
               ) : (
                 `${stats.total} applications tracked`
               )}
             </p>
           </div>
-          {/* Sign Out Button added here */}
           <button className="nav-cta" onClick={onSignOut} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Icon.LogOut />
-            Sign Out
+            <Icon.LogOut /> Sign Out
           </button>
         </header>
 
@@ -257,7 +247,7 @@ function Dashboard({ session, onSignOut, isFetchingEmails, error }) {
           <div className="empty-state">
             <Icon.Inbox />
             <h2>Waiting for data...</h2>
-            <p>Your AI scanner runs automatically. New applications will appear here in real-time.</p>
+            <p>Your AI scanner is running. New applications will appear here in real-time.</p>
           </div>
         ) : (
           <div className="pipeline-view">
@@ -274,9 +264,7 @@ function Dashboard({ session, onSignOut, isFetchingEmails, error }) {
                   <div className="app-card slide-in" key={app.id}>
                     <div className="app-card-header">
                       <div className="app-icon-box"><Icon.Briefcase /></div>
-                      <div className="app-status-badge" style={{ backgroundColor: config.bg, color: config.color }}>
-                        {config.label}
-                      </div>
+                      <div className="app-status-badge" style={{ backgroundColor: config.bg, color: config.color }}>{config.label}</div>
                     </div>
                     <div className="app-card-body">
                       <h3 className="app-company">{app.company}</h3>
@@ -303,11 +291,11 @@ export default function App() {
     const saved = localStorage.getItem('Refloe_profile');
     return saved ? JSON.parse(saved) : null;
   });
+  const [tempAuth, setTempAuth] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [isFetchingEmails, setIsFetchingEmails] = useState(false);
 
-  // 1. Google Auth Code Flow Trigger
+  // 1. Initial Google Login Trigger
   const handleGetStarted = () => {
     if (!window.google) return;
 
@@ -322,78 +310,110 @@ export default function App() {
           setLoading(true);
           try {
             const { data, error: funcError } = await supabase.functions.invoke('auth-handler', {
-              body: { 
-                code: response.code, 
-                action: 'google-login' 
-              }
+              body: { code: response.code, action: 'google-login' }
             });
             
-            if (funcError) throw new Error(funcError.message);
-            if (data?.error) throw new Error(data.error);
+            if (funcError || data?.error) throw new Error(funcError?.message || data?.error);
 
-            // Re-added the Supabase session fix so your RLS policy allows data to load!
-            if (data.session) {
-               await supabase.auth.setSession({
-                 access_token: data.session.access_token,
-                 refresh_token: data.session.refresh_token
-               });
+            // LOGIC CHANGE: Check if new or returning user
+            if (data.is_new_user) {
+              setTempAuth(data); // Brand new user -> Show History Prompt
+            } else {
+              // Returning user -> Log them in directly!
+              if (data.session) {
+                await supabase.auth.setSession({
+                  access_token: data.session.access_token,
+                  refresh_token: data.session.refresh_token
+                });
+              }
+              setSession(data.user);
+              localStorage.setItem('Refloe_profile', JSON.stringify(data.user));
             }
 
-            setSession(data.user);
-            localStorage.setItem('Refloe_profile', JSON.stringify(data.user));
           } catch (err) {
-            setError(err.message);
+            console.error("Auth Error:", err.message);
           } finally {
             setLoading(false);
           }
         }
       },
     });
-
     client.requestCode();
   };
 
-  const handleSignOut = async () => {
-    // 1. Tell Supabase to destroy the session securely
-    await supabase.auth.signOut();
-    // 2. Clear out local storage
-    localStorage.removeItem('Refloe_profile');
-    // 3. Reset React state to push user back to HeroPage
-    setSession(null);
-  };
-
-  const handleManualScan = () => {
-    if (!window.google) return;
-    const client = window.google.accounts.oauth2.initTokenClient({
-      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-      scope: 'https://www.googleapis.com/auth/gmail.readonly',
-      callback: async (tokenResponse) => {
-        if (tokenResponse?.access_token) {
-          setIsFetchingEmails(true);
-          try {
-            await supabase.functions.invoke('fetch-emails', {
-              body: { accessToken: tokenResponse.access_token }
-            });
-          } catch (err) {
-            setError(err.message);
-          } finally {
-            setIsFetchingEmails(false);
-          }
+  // 2. Finalize Signup after user selects history months
+  const handleConfirmHistory = async (months) => {
+    setLoading(true);
+    // We set this to true so the dashboard can show a "Scanning..." state immediately
+    setIsFetchingEmails(true); 
+    
+    try {
+      // Notify the backend to update the user's scan preference
+      const { error: scanError } = await supabase.functions.invoke('auth-handler', {
+        body: { 
+          action: 'trigger-scan', 
+          userId: tempAuth.user.id, 
+          months: months 
         }
-      },
-    });
-    client.requestAccessToken();
+      });
+
+      if (scanError) throw scanError;
+      
+      // Establish the Supabase session so RLS policies allow data fetching
+      if (tempAuth.session) {
+        await supabase.auth.setSession({
+          access_token: tempAuth.session.access_token,
+          refresh_token: tempAuth.session.refresh_token
+        });
+      }
+
+      // Move user to the Dashboard
+      setSession(tempAuth.user);
+      localStorage.setItem('Refloe_profile', JSON.stringify(tempAuth.user));
+      setTempAuth(null); // Clear temp state
+    } catch (err) {
+      console.error("History Selection Error:", err.message);
+    } finally {
+      setLoading(false);
+      // We keep isFetchingEmails true for a moment or let the Dashboard handle the live state
+      setIsFetchingEmails(false);
+    }
   };
 
-  return session ? (
-    <Dashboard
-      session={session}
-      onSignOut={handleSignOut}
-      isFetchingEmails={isFetchingEmails}
-      onFetchEmails={handleManualScan}
-      error={error}
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem('Refloe_profile');
+    setSession(null);
+    setTempAuth(null);
+  };
+
+  // Rendering Logic:
+  // 1. If session exists, show Dashboard.
+  // 2. If tempAuth exists (meaning they logged in but haven't picked months), show HistoryPage.
+  // 3. Otherwise, show the Hero/Landing page.
+  if (session) {
+    return (
+      <Dashboard 
+        session={session} 
+        onSignOut={handleSignOut} 
+        isFetchingEmails={isFetchingEmails} 
+      />
+    );
+  }
+
+  if (tempAuth) {
+    return (
+      <HistoryPage 
+        onConfirm={handleConfirmHistory} 
+        loading={loading} 
+      />
+    );
+  }
+
+  return (
+    <HeroPage 
+      onGetStarted={handleGetStarted} 
+      loading={loading} 
     />
-  ) : (
-    <HeroPage onGetStarted={handleGetStarted} loading={loading} />
   );
 }
