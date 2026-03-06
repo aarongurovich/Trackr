@@ -97,6 +97,7 @@ def handler(event, context):
         provider = user_resp.data.get('preferred_provider', 'google')
         months = user_resp.data.get('scan_history_months', 0) or 0
         messages_processed = 0
+        MAX_EMAILS = 500
 
         # ==========================================
         # MICROSOFT OUTLOOK LOGIC
@@ -124,21 +125,34 @@ def handler(event, context):
                 print(f"EXISTING USER: Performing standard 24-hour incremental scan for {user_id}")
                 
             date_str = past_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-            graph_url = f"https://graph.microsoft.com/v1.0/me/messages?$filter=receivedDateTime ge {date_str}&$select=id,bodyPreview"
+            graph_url = f"https://graph.microsoft.com/v1.0/me/messages?$filter=receivedDateTime ge {date_str}&$select=id,bodyPreview,receivedDateTime&$top=50"
             
-            msgs_resp = requests.get(graph_url, headers=headers)
-            msgs_resp.raise_for_status() # Will throw if Graph API rejects the token
-            messages = msgs_resp.json().get('value', [])
-            
-            for msg_data in messages:
-                payload = {
-                    "email_body": msg_data.get('bodyPreview', ''),
-                    "source_email_id": msg_data.get('id'),
-                    "user_id": user_id,
-                    "applied_date": datetime.now().strftime('%Y-%m-%d')
-                }
-                sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json.dumps(payload))
-                messages_processed += 1
+            # Loop for pagination
+            while graph_url and messages_processed < MAX_EMAILS:
+                msgs_resp = requests.get(graph_url, headers=headers)
+                msgs_resp.raise_for_status()
+                data = msgs_resp.json()
+                messages = data.get('value', [])
+                
+                for msg_data in messages:
+                    if messages_processed >= MAX_EMAILS:
+                        break
+                    
+                    # Convert Outlook ISO timestamp to YYYY-MM-DD
+                    raw_date = msg_data.get('receivedDateTime', '')
+                    formatted_date = raw_date[:10] if raw_date else datetime.now().strftime('%Y-%m-%d')
+                    
+                    payload = {
+                        "email_body": msg_data.get('bodyPreview', ''),
+                        "source_email_id": msg_data.get('id'),
+                        "user_id": user_id,
+                        "applied_date": formatted_date
+                    }
+                    sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json.dumps(payload))
+                    messages_processed += 1
+                
+                # Check for the next page link
+                graph_url = data.get('@odata.nextLink')
 
         # ==========================================
         # GOOGLE GMAIL LOGIC
@@ -166,29 +180,48 @@ def handler(event, context):
                  return {"statusCode": 401, "body": "Error: Failed to obtain Google access token."}
 
             headers = {'Authorization': f'Bearer {access_token}'}
+            next_page_token = None
             
-            msgs_resp = requests.get(
-                f"https://www.googleapis.com/gmail/v1/users/me/messages?q={gmail_q}", 
-                headers=headers
-            )
-            msgs_resp.raise_for_status()
-            
-            messages = msgs_resp.json().get('messages', [])
-            for msg_meta in messages:
-                msg_data = requests.get(
-                    f"https://www.googleapis.com/gmail/v1/users/me/messages/{msg_meta['id']}", 
-                    headers=headers
-                ).json()
+            # Loop for pagination
+            while messages_processed < MAX_EMAILS:
+                list_url = f"https://www.googleapis.com/gmail/v1/users/me/messages?q={gmail_q}&maxResults=100"
+                if next_page_token:
+                    list_url += f"&pageToken={next_page_token}"
+                    
+                msgs_resp = requests.get(list_url, headers=headers)
+                msgs_resp.raise_for_status()
+                data = msgs_resp.json()
+                messages = data.get('messages', [])
                 
-                payload = {
-                    "email_body": msg_data.get('snippet', ''),
-                    "source_email_id": msg_meta['id'],
-                    "user_id": user_id,
-                    "applied_date": datetime.now().strftime('%Y-%m-%d')
-                }
+                if not messages:
+                    break
+
+                for msg_meta in messages:
+                    if messages_processed >= MAX_EMAILS:
+                        break
+                        
+                    msg_data = requests.get(
+                        f"https://www.googleapis.com/gmail/v1/users/me/messages/{msg_meta['id']}", 
+                        headers=headers
+                    ).json()
+                    
+                    # Convert Gmail internalDate (ms) to YYYY-MM-DD
+                    ms_timestamp = int(msg_data.get('internalDate', 0))
+                    formatted_date = datetime.fromtimestamp(ms_timestamp / 1000.0).strftime('%Y-%m-%d') if ms_timestamp else datetime.now().strftime('%Y-%m-%d')
+                    
+                    payload = {
+                        "email_body": msg_data.get('snippet', ''),
+                        "source_email_id": msg_meta['id'],
+                        "user_id": user_id,
+                        "applied_date": formatted_date
+                    }
+                    
+                    sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json.dumps(payload))
+                    messages_processed += 1
                 
-                sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json.dumps(payload))
-                messages_processed += 1
+                next_page_token = data.get('nextPageToken')
+                if not next_page_token:
+                    break
 
         # ==========================================
         # POST-PROCESSING
