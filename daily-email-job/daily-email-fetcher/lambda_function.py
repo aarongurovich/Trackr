@@ -11,28 +11,13 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 QUEUE_URL = os.environ.get("SQS_QUEUE_URL")
-TEST_MODE = os.environ.get("TEST_MODE", "false").lower() == "true"
 
 # --- 2. Initializations ---
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 sqs = boto3.client('sqs')
 
-def get_fake_emails(user_id):
-    """Generates 10 diverse test cases for the AI classifier."""
-    return [
-        {"id": "test_01", "body": "Thank you for applying to Google for the Software Engineer role! We received your application."},
-        {"id": "test_02", "body": "Hi Aaron, we'd like to invite you for an interview at Meta for the Production Engineer position."},
-        {"id": "test_03", "body": "Regretfully, Amazon will not be moving forward with your application for SDE1 at this time."},
-        {"id": "test_04", "body": "Congratulations! We are pleased to offer you the Data Scientist role at NVIDIA. Details attached."},
-        {"id": "test_05", "body": "Your weekly LinkedIn job alerts: 15 new Software Engineer roles in Lubbock, TX."},
-        {"id": "test_06", "body": "Hey Aaron, want to grab lunch today? Let me know if you're free near campus."},
-        {"id": "test_07", "body": "Update from Tesla: Your interview for the Firmware Intern role is confirmed for Friday at 10 AM."},
-        {"id": "test_08", "body": "Netflix: Your subscription has been renewed. Thank you for being a member!"},
-        {"id": "test_09", "body": "Application Received: Full-stack Developer at Stripe. We are reviewing your profile now."},
-        {"id": "test_10", "body": "Hi, this is a recruiter from OpenAI. We saw your GitHub and want to chat about a Research Engineer role."}
-    ]
-
 def get_access_token(refresh_token):
+    """Refreshes the Google OAuth access token."""
     response = requests.post('https://oauth2.googleapis.com/token', data={
         'client_id': GOOGLE_CLIENT_ID,
         'client_secret': GOOGLE_CLIENT_SECRET,
@@ -42,42 +27,78 @@ def get_access_token(refresh_token):
     return response.json().get('access_token')
 
 def handler(event, context):
-    users_resp = supabase.table("users").select("id, email, refresh_token").not_.is_("refresh_token", "null").execute()
-    users = users_resp.data
+    # Hardcoded ID for Aaron Gurovich
+    USER_ID = "5e2b7b41-f662-44ef-8ee0-0c6a010fdf4a"
     
-    print(f"Mode: {'TEST' if TEST_MODE else 'LIVE'}. Found {len(users)} users.")
+    # Check if debug mode is enabled in the event object
+    is_debug = event.get("debug") is True
 
-    for user in users:
-        try:
-            if TEST_MODE:
-                print(f"Injecting test emails for {user['email']}")
-                messages = get_fake_emails(user['id'])
-                for msg in messages:
-                    payload = {
-                        "email_body": msg['body'],
-                        "source_email_id": msg['id'],
-                        "user_id": user['id'],
-                        "applied_date": datetime.now().strftime('%Y-%m-%d')
-                    }
-                    sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json.dumps(payload))
-                continue
+    # 1. Debug Mode: Send ONLY static test records
+    if is_debug:
+        test_cases = [
+            "Dear Aaron Gurovich, we are pleased to offer you the position of Software Engineer at Tech Corp!",
+            "Hi Aaron Gurovich, you have an interview for the Production Engineer role at Meta.",
+            "Regretfully, Amazon is not moving forward with your application for SDE1.",
+            "Congratulations! We are pleased to offer you the Data Scientist role at NVIDIA.",
+            "Your weekly LinkedIn job alerts: 15 new Software Engineer roles in Lubbock, TX.",
+            "Hey Aaron, want to grab lunch today? Let me know if you're free.",
+            "Update from Tesla: Your interview for the Firmware Intern role is confirmed.",
+            "Netflix: Your subscription has been renewed.",
+            "Application Received: Full-stack Developer at Stripe.",
+            "Hi, this is a recruiter from OpenAI. We saw your GitHub and want to chat."
+        ]
 
-            # LIVE MODE Logic
-            access_token = get_access_token(user['refresh_token'])
+        print(f"DEBUG MODE ENABLED: Sending {len(test_cases)} fake emails to SQS.")
+        for i, text in enumerate(test_cases):
+            payload = {
+                "email_body": text,
+                "source_email_id": f"test-1234{i}",
+                "user_id": USER_ID,
+                "applied_date": datetime.now().strftime('%Y-%m-%d')
+            }
+            sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json.dumps(payload))
+        
+        return {"statusCode": 200, "body": "Debug mode: 10 fake emails sent to SQS"}
+
+    # 2. Production Mode: Fetch ONLY real emails from Gmail
+    try:
+        user_resp = supabase.table("users").select("refresh_token").eq("id", USER_ID).single().execute()
+        refresh_token = user_resp.data.get('refresh_token')
+
+        if refresh_token:
+            print(f"PRODUCTION MODE: Fetching real emails for user: {USER_ID}")
+            access_token = get_access_token(refresh_token)
             headers = {'Authorization': f'Bearer {access_token}'}
-            msgs_resp = requests.get(f"https://www.googleapis.com/gmail/v1/users/me/messages?q=newer_than:1d", headers=headers).json()
             
-            for msg_meta in msgs_resp.get('messages', []):
-                msg_data = requests.get(f"https://www.googleapis.com/gmail/v1/users/me/messages/{msg_meta['id']}", headers=headers).json()
+            # Query for emails from the last 24 hours
+            msgs_resp = requests.get(
+                "https://www.googleapis.com/gmail/v1/users/me/messages?q=newer_than:1d", 
+                headers=headers
+            ).json()
+            
+            messages = msgs_resp.get('messages', [])
+            for msg_meta in messages:
+                msg_data = requests.get(
+                    f"https://www.googleapis.com/gmail/v1/users/me/messages/{msg_meta['id']}", 
+                    headers=headers
+                ).json()
+                
                 payload = {
                     "email_body": msg_data.get('snippet', ''),
                     "source_email_id": msg_meta['id'],
-                    "user_id": user['id'],
+                    "user_id": USER_ID,
                     "applied_date": datetime.now().strftime('%Y-%m-%d')
                 }
-                sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json.dumps(payload))
                 
-        except Exception as e:
-            print(f"Error for user {user['email']}: {str(e)}")
+                sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json.dumps(payload))
             
-    return {"statusCode": 200, "body": "Process complete"}
+            print(f"Sent {len(messages)} real emails to SQS.")
+            return {"statusCode": 200, "body": f"Production mode: {len(messages)} real emails processed"}
+            
+        else:
+            print("No refresh_token found. Cannot fetch real emails.")
+            return {"statusCode": 404, "body": "Error: User refresh token not found"}
+
+    except Exception as e:
+        print(f"Error fetching real emails: {str(e)}")
+        return {"statusCode": 500, "body": f"Error: {str(e)}"}

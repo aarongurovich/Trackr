@@ -12,14 +12,11 @@ data "archive_file" "classifier_zip" {
 }
 
 # --- 2. Lambda Layer Definition ---
-# This layer provides 'requests' and 'supabase' libraries
 resource "aws_lambda_layer_version" "python_dependencies" {
   filename            = "${path.module}/layer.zip"
   layer_name          = "refloe_dependencies"
   compatible_runtimes = ["python3.10"]
-  
-  # This ensures the layer is updated if the zip changes
-  source_code_hash = filebase64sha256("${path.module}/layer.zip")
+  source_code_hash    = filebase64sha256("${path.module}/layer.zip")
 }
 
 # --- 3. Shared Environment Map ---
@@ -36,10 +33,11 @@ locals {
 resource "aws_sqs_queue" "email_queue" {
   name                       = "email-processing-queue"
   message_retention_seconds  = 86400 
-  visibility_timeout_seconds = 60    
+  visibility_timeout_seconds = 60   
 }
 
 # --- 5. Sender Lambda (Daily Email Fetcher) ---
+# Running without vpc_config enables free internet access.
 resource "aws_lambda_function" "email_fetcher" {
   function_name = "daily-email-fetcher"
   role          = aws_iam_role.lambda_exec.arn
@@ -50,7 +48,6 @@ resource "aws_lambda_function" "email_fetcher" {
   filename         = data.archive_file.fetcher_zip.output_path
   source_code_hash = data.archive_file.fetcher_zip.output_base64sha256
 
-  # Apply the Layer here
   layers = [aws_lambda_layer_version.python_dependencies.arn]
 
   environment {
@@ -61,6 +58,7 @@ resource "aws_lambda_function" "email_fetcher" {
 }
 
 # --- 6. Classifier Lambda (AI Email Classifier) ---
+# Running without vpc_config enables free internet access.
 resource "aws_lambda_function" "email_classifier" {
   function_name = "ai-email-classifier"
   role          = aws_iam_role.lambda_exec.arn
@@ -71,7 +69,6 @@ resource "aws_lambda_function" "email_classifier" {
   filename         = data.archive_file.classifier_zip.output_path
   source_code_hash = data.archive_file.classifier_zip.output_base64sha256
 
-  # Apply the Layer here
   layers = [aws_lambda_layer_version.python_dependencies.arn]
 
   environment {
