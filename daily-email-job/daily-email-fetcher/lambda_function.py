@@ -97,7 +97,7 @@ def handler(event, context):
         provider = user_resp.data.get('preferred_provider', 'google')
         months = user_resp.data.get('scan_history_months', 0) or 0
         messages_processed = 0
-        MAX_EMAILS = 500
+        MAX_EMAILS = 2000
 
         # ==========================================
         # MICROSOFT OUTLOOK LOGIC
