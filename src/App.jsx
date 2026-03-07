@@ -1,3 +1,4 @@
+// Replace the contents of src/App.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from './supabaseClient';
 import './App.css';
@@ -288,7 +289,6 @@ function Dashboard({ session, onSignOut, isFetchingEmails }) {
   };
 
   const { stats, statusData, roleData, timelineData, radarData, topTitlesData, actionItems, paginatedApps, totalPages } = useMemo(() => {
-    // Analytics (Unfiltered, uses all global apps)
     const active = apps.filter(a => ['interview', 'interviewing'].includes(a.status));
     const offers = apps.filter(a => a.status === 'offer');
     
@@ -323,16 +323,26 @@ function Dashboard({ session, onSignOut, isFetchingEmails }) {
     });
     const timeD = Object.values(timeMap).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
-    const radarMap = { 'General SWE': 0, 'Data/AI': 0, 'Frontend': 0, 'Backend': 0, 'Cloud/Infra': 0, 'Product/Mgmt': 0 };
+    // Generic Role Archetypes Map
+    const radarMap = { 
+      'Engineering & IT': 0, 
+      'Sales & Marketing': 0, 
+      'Mgmt & Product': 0, 
+      'Design & Creative': 0, 
+      'Finance & Admin': 0, 
+      'Ops & Support': 0 
+    };
+
     apps.forEach(a => {
       const t = (a.role || '').toLowerCase();
-      if (t.includes('data') || t.includes('ai') || t.includes('machine') || t.includes('ml')) radarMap['Data/AI']++;
-      else if (t.includes('front') || t.includes('ui') || t.includes('ux') || t.includes('react')) radarMap['Frontend']++;
-      else if (t.includes('back') || t.includes('api') || t.includes('server') || t.includes('database')) radarMap['Backend']++;
-      else if (t.includes('cloud') || t.includes('devops') || t.includes('aws') || t.includes('infra') || t.includes('site')) radarMap['Cloud/Infra']++;
-      else if (t.includes('product') || t.includes('manager') || t.includes('pm')) radarMap['Product/Mgmt']++;
-      else radarMap['General SWE']++;
+      if (/(engineer|developer|data|ai|machine|software|it\b|cloud|tech|backend|frontend|web|system|network)/.test(t)) radarMap['Engineering & IT']++;
+      else if (/(sales|marketing|account|growth|sdr|bdr|ae|brand|seo|social|market)/.test(t)) radarMap['Sales & Marketing']++;
+      else if (/(manager|product|strategy|director|vp|head|chief|consultant|president|founder)/.test(t)) radarMap['Mgmt & Product']++;
+      else if (/(design|ux|ui|content|creative|writer|art|video|media|copy)/.test(t)) radarMap['Design & Creative']++;
+      else if (/(finance|account|hr|legal|admin|talent|recruiter|financial|tax|audit|counsel)/.test(t)) radarMap['Finance & Admin']++;
+      else radarMap['Ops & Support']++;
     });
+    
     let maxRadar = 1;
     Object.values(radarMap).forEach(v => { if (v > maxRadar) maxRadar = v; });
     const radarD = Object.keys(radarMap).map(k => ({ subject: k, count: radarMap[k], fullMark: maxRadar }));
@@ -359,7 +369,6 @@ function Dashboard({ session, onSignOut, isFetchingEmails }) {
       .sort((a, b) => new Date(b.rawDate || 0) - new Date(a.rawDate || 0))
       .slice(0, 8);
 
-    // Filter & Sort for the Table
     let processedApps = [...apps];
 
     if (searchTerm) {
@@ -422,7 +431,7 @@ function Dashboard({ session, onSignOut, isFetchingEmails }) {
       <main className="dash-main">
         <header className="dash-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 className="dash-title">Appliation Dashboard</h1>
+            <h1 className="dash-title">Production Dashboard</h1>
             <p className="dash-sub">
               {isFetchingEmails ? <span className="scanning-text"><Icon.Sparkles /> AI is scanning your history...</span> : `${stats.total} unique companies tracked`}
             </p>
@@ -527,7 +536,7 @@ function Dashboard({ session, onSignOut, isFetchingEmails }) {
                   </ResponsiveContainer>
                 </div>
               </div>
-                        
+                            
 
               <div className="chart-container-prod span-full">
                 <h3 className="chart-title">Application Volume Over Time</h3>
@@ -832,9 +841,8 @@ export default function App() {
       setSession(activeUser);
       localStorage.setItem('Refloe_profile', JSON.stringify(activeUser));
       setTempAuth(null); 
-      setLoading(false); // Drop loading state immediately so UI transitions to Dashboard
+      setLoading(false); 
       
-      // Fire-and-forget the background task (fixes "stuck on preparing your scan")
       supabase.functions.invoke('auth-handler', {
         body: { 
           action: 'trigger-scan', 
@@ -846,7 +854,7 @@ export default function App() {
       }).catch(err => {
           console.error("Background scan invocation failed:", err);
       }).finally(() => {
-          setIsFetchingEmails(false); // Turn off the "AI is scanning" indicator when background job finishes
+          setIsFetchingEmails(false); 
       });
 
     } catch (err) {
