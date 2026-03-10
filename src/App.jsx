@@ -11,7 +11,8 @@ import {
   BrowserRouter,
   Routes,
   Route,
-  useNavigate
+  useNavigate,
+  Links
 } from 'react-router-dom';
 
 const Icon = {
@@ -259,8 +260,8 @@ function HeroPage({ onGetStarted, onOutlookLogin, loading }) {
 
       <footer className="hero-footer">
         <div className="footer-links">
-          <button onClick={() => navigate('/privacy')} className="footer-link">Privacy Policy</button>
-          <button onClick={() => navigate('/terms')} className="footer-link">Terms of Service</button>
+          <Link to="/privacy" className="footer-link">Privacy Policy</Link>
+          <Link to="/terms" className="footer-link">Terms of Service</Link>
         </div>
         <p className="footer-copyright">© 2026 Refloe. All rights reserved.</p>
       </footer>
