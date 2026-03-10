@@ -1,3 +1,5 @@
+# daily-email-job/daily-email-fetcher/lambda_function.py
+
 import os
 import json
 import boto3
@@ -44,27 +46,8 @@ def get_microsoft_access_token(refresh_token):
     response = requests.post('https://login.microsoftonline.com/common/oauth2/v2.0/token', headers=headers, data=data)
     return response.json().get('access_token')
 
-def handler(event, context):
-    """
-    Main handler for fetching emails. 
-    Supports both daily incremental scans and historical deep scans.
-    """
-    if "body" in event and event["body"]:
-        try:
-            body_data = json.loads(event["body"])
-            user_id = body_data.get("user_id")
-            is_debug = body_data.get("debug") is True
-        except Exception:
-            user_id = None
-            is_debug = False
-    else:
-        user_id = event.get("user_id")
-        is_debug = event.get("debug") is True
-    
-    if not user_id:
-        print("No user_id provided. Exiting.")
-        return {"statusCode": 400, "body": "Error: user_id is required."}
-
+def process_user_emails(user_id, is_debug=False):
+    """Fetches and processes emails for a single user."""
     if is_debug:
         test_cases = [
             "Dear Aaron Gurovich, we are pleased to offer you the position of Software Engineer at Tech Corp!",
@@ -78,8 +61,7 @@ def handler(event, context):
             "Application Received: Full-stack Developer at Stripe.",
             "Hi, this is a recruiter from OpenAI. We saw your GitHub and want to chat."
         ]
-
-        print(f"DEBUG MODE ENABLED: Sending {len(test_cases)} fake emails to SQS for user {user_id}.")
+        print(f"DEBUG MODE: Sending {len(test_cases)} fake emails to SQS for user {user_id}.")
         for i, text in enumerate(test_cases):
             payload = {
                 "email_body": text,
@@ -88,8 +70,7 @@ def handler(event, context):
                 "applied_date": datetime.now().strftime('%Y-%m-%d')
             }
             sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json.dumps(payload))
-        
-        return {"statusCode": 200, "body": "Debug mode: 10 fake emails sent to SQS"}
+        return 10
 
     try:
         user_resp = supabase.table("users").select("refresh_token, outlook_refresh_token, preferred_provider, scan_history_months").eq("id", user_id).single().execute()
@@ -99,145 +80,98 @@ def handler(event, context):
         messages_processed = 0
         MAX_EMAILS = 2000
 
-        # ==========================================
-        # MICROSOFT OUTLOOK LOGIC
-        # ==========================================
         if provider == 'outlook':
             refresh_token = user_resp.data.get('outlook_refresh_token')
-            if not refresh_token:
-                print(f"No outlook_refresh_token found for user {user_id}. Cannot fetch emails.")
-                return {"statusCode": 404, "body": "Error: User outlook refresh token not found"}
-                
-            print(f"PRODUCTION MODE (OUTLOOK): Fetching emails for user: {user_id}")
+            if not refresh_token: return 0
             access_token = get_microsoft_access_token(refresh_token)
-            
-            if not access_token:
-                 print(f"CRITICAL: Failed to get access token for user {user_id}. Exiting.")
-                 return {"statusCode": 401, "body": "Error: Failed to obtain Microsoft access token."}
+            if not access_token: return 0
 
             headers = {'Authorization': f'Bearer {access_token}'}
-            
-            if months > 0:
-                past_date = datetime.now(timezone.utc) - timedelta(days=months*30)
-                print(f"NEW USER DETECTED: Performing one-time {months} month historical scan for {user_id}")
-            else:
-                past_date = datetime.now(timezone.utc) - timedelta(days=1)
-                print(f"EXISTING USER: Performing standard 24-hour incremental scan for {user_id}")
-                
+            past_date = datetime.now(timezone.utc) - timedelta(days=max(1, months*30))
             date_str = past_date.strftime("%Y-%m-%dT%H:%M:%SZ")
             graph_url = f"https://graph.microsoft.com/v1.0/me/messages?$filter=receivedDateTime ge {date_str}&$select=id,bodyPreview,receivedDateTime&$top=50"
             
-            # Loop for pagination
             while graph_url and messages_processed < MAX_EMAILS:
                 msgs_resp = requests.get(graph_url, headers=headers)
                 msgs_resp.raise_for_status()
                 data = msgs_resp.json()
-                messages = data.get('value', [])
-                
-                for msg_data in messages:
-                    if messages_processed >= MAX_EMAILS:
-                        break
-                    
-                    # Convert Outlook ISO timestamp to YYYY-MM-DD
+                for msg_data in data.get('value', []):
+                    if messages_processed >= MAX_EMAILS: break
                     raw_date = msg_data.get('receivedDateTime', '')
-                    formatted_date = raw_date[:10] if raw_date else datetime.now().strftime('%Y-%m-%d')
-                    
                     payload = {
                         "email_body": msg_data.get('bodyPreview', ''),
                         "source_email_id": msg_data.get('id'),
                         "user_id": user_id,
-                        "applied_date": formatted_date
+                        "applied_date": raw_date[:10] if raw_date else datetime.now().strftime('%Y-%m-%d')
                     }
                     sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json.dumps(payload))
                     messages_processed += 1
-                
-                # Check for the next page link
                 graph_url = data.get('@odata.nextLink')
 
-        # ==========================================
-        # GOOGLE GMAIL LOGIC
-        # ==========================================
         else:
             refresh_token = user_resp.data.get('refresh_token')
-            if not refresh_token:
-                print(f"No refresh_token found for user {user_id}. Cannot fetch emails.")
-                return {"statusCode": 404, "body": "Error: User refresh token not found"}
-
-            if months > 0:
-                time_query = f"{months * 30}d"
-                print(f"NEW USER DETECTED: Performing one-time {months} month historical scan for {user_id}")
-            else:
-                time_query = "1d"
-                print(f"EXISTING USER: Performing standard 24-hour incremental scan for {user_id}")
-                
+            if not refresh_token: return 0
+            time_query = f"{months * 30}d" if months > 0 else "1d"
             gmail_q = f"newer_than:{time_query}"
-            
-            print(f"PRODUCTION MODE (GMAIL): Fetching emails for user: {user_id} with query: {gmail_q}")
             access_token = get_google_access_token(refresh_token)
-            
-            if not access_token:
-                 print(f"CRITICAL: Failed to get access token for user {user_id}. Exiting.")
-                 return {"statusCode": 401, "body": "Error: Failed to obtain Google access token."}
+            if not access_token: return 0
 
             headers = {'Authorization': f'Bearer {access_token}'}
             next_page_token = None
-            
-            # Loop for pagination
             while messages_processed < MAX_EMAILS:
                 list_url = f"https://www.googleapis.com/gmail/v1/users/me/messages?q={gmail_q}&maxResults=100"
-                if next_page_token:
-                    list_url += f"&pageToken={next_page_token}"
-                    
+                if next_page_token: list_url += f"&pageToken={next_page_token}"
                 msgs_resp = requests.get(list_url, headers=headers)
                 msgs_resp.raise_for_status()
                 data = msgs_resp.json()
                 messages = data.get('messages', [])
-                
-                if not messages:
-                    break
-
+                if not messages: break
                 for msg_meta in messages:
-                    if messages_processed >= MAX_EMAILS:
-                        break
-                        
-                    msg_data = requests.get(
-                        f"https://www.googleapis.com/gmail/v1/users/me/messages/{msg_meta['id']}", 
-                        headers=headers
-                    ).json()
-                    
-                    # Convert Gmail internalDate (ms) to YYYY-MM-DD
+                    if messages_processed >= MAX_EMAILS: break
+                    msg_data = requests.get(f"https://www.googleapis.com/gmail/v1/users/me/messages/{msg_meta['id']}", headers=headers).json()
                     ms_timestamp = int(msg_data.get('internalDate', 0))
-                    formatted_date = datetime.fromtimestamp(ms_timestamp / 1000.0).strftime('%Y-%m-%d') if ms_timestamp else datetime.now().strftime('%Y-%m-%d')
-                    
                     payload = {
                         "email_body": msg_data.get('snippet', ''),
                         "source_email_id": msg_meta['id'],
                         "user_id": user_id,
-                        "applied_date": formatted_date
+                        "applied_date": datetime.fromtimestamp(ms_timestamp / 1000.0).strftime('%Y-%m-%d') if ms_timestamp else datetime.now().strftime('%Y-%m-%d')
                     }
-                    
                     sqs.send_message(QueueUrl=QUEUE_URL, MessageBody=json.dumps(payload))
                     messages_processed += 1
-                
                 next_page_token = data.get('nextPageToken')
-                if not next_page_token:
-                    break
+                if not next_page_token: break
 
-        # ==========================================
-        # POST-PROCESSING
-        # ==========================================
         if months > 0:
-            print(f"Resetting scan_history_months for user {user_id} after deep scan.")
             supabase.table("users").update({"scan_history_months": 0}).eq("id", user_id).execute()
-        
-        print(f"Sent {messages_processed} real emails to SQS.")
-        return {"statusCode": 200, "body": f"Production mode: {messages_processed} real emails processed"}
+        return messages_processed
 
-    except requests.exceptions.HTTPError as he:
-         print(f"HTTP Error fetching emails: {he}")
-         if he.response is not None:
-             print(f"Response Content: {he.response.text}")
-         return {"statusCode": 500, "body": f"HTTP Error: {str(he)}"}
     except Exception as e:
-        print(f"Error fetching real emails for user {user_id}: {str(e)}")
-        return {"statusCode": 500, "body": f"Error: {str(e)}"}
+        print(f"Error for user {user_id}: {e}")
+        return 0
+
+def handler(event, context):
+    user_id = None
+    is_debug = False
+
+    if "body" in event and event["body"]:
+        try:
+            body_data = json.loads(event["body"])
+            user_id = body_data.get("user_id")
+            is_debug = body_data.get("debug") is True
+        except Exception: pass
+    else:
+        user_id = event.get("user_id")
+        is_debug = event.get("debug") is True
+    
+    # If triggered by CloudWatch (no user_id), fetch and process ALL users
+    if not user_id:
+        print("Scheduled scan: Processing all users.")
+        users_resp = supabase.table("users").select("id").execute()
+        total_processed = 0
+        for user in users_resp.data:
+            total_processed += process_user_emails(user['id'])
+        return {"statusCode": 200, "body": f"Scheduled scan complete. Processed {total_processed} emails across all users."}
+
+    # Process single user
+    processed = process_user_emails(user_id, is_debug)
+    return {"statusCode": 200, "body": f"Processed {processed} emails for user {user_id}."}
