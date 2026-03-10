@@ -222,6 +222,9 @@ Deno.serve(async (req) => {
     throw new Error('Invalid request parameters')
 
   } catch (err) {
+    
+    console.error("CRITICAL AUTH ERROR:", err.message);
+
     return new Response(JSON.stringify({ error: err.message }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 401 
