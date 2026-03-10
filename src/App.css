@@ -4,21 +4,21 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:       #080c14;
-  --surface:  #0d1220;
-  --card:     #111827;
-  --border:   rgba(255,255,255,0.07);
-  --border-h: rgba(255,255,255,0.14);
-  --text:     #f0f4ff;
+  --bg:         #080c14;
+  --surface:    #0d1220;
+  --card:       #111827;
+  --border:     rgba(255,255,255,0.07);
+  --border-h:   rgba(255,255,255,0.14);
+  --text:       #f0f4ff;
   --text-muted: #9ca3af;
-  --muted:    #6b7a99;
-  --accent:   #4f8ef7;
-  --accent-2: #7c6af5;
-  --green:    #34d399;
+  --muted:      #6b7a99;
+  --accent:     #4f8ef7;
+  --accent-2:   #7c6af5;
+  --green:      #34d399;
   --font-display: 'Syne', sans-serif;
   --font-body:    'DM Sans', sans-serif;
-  --radius:   14px;
-  --radius-lg: 22px;
+  --radius:     14px;
+  --radius-lg:  22px;
 }
 
 html { scroll-behavior: smooth; }
@@ -99,6 +99,8 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   padding: 1.5rem 3rem;
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(8px);
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .nav-logo {
@@ -116,7 +118,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0.5rem 1.25rem;
+  padding: 0.6rem 1.25rem;
   border-radius: 100px;
   border: 1px solid var(--border-h);
   color: var(--text);
@@ -124,6 +126,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   font-weight: 500;
   transition: all 0.2s;
   background: rgba(255,255,255,0.04);
+  min-height: 44px; /* Mobile touch target optimization */
 }
 .nav-cta:hover {
   background: rgba(255,255,255,0.08);
@@ -168,7 +171,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   font-family: var(--font-display);
   font-size: clamp(2.5rem, 6vw, 5.5rem);
   font-weight: 800;
-  line-height: 1.05;
+  line-height: 1.1;
   letter-spacing: -0.03em;
   margin-bottom: 1.5rem;
   animation: fadeUp 0.7s 0.15s ease both;
@@ -216,6 +219,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   overflow: hidden;
   width: 100%;
   max-width: 280px;
+  min-height: 48px; /* Mobile touch target optimization */
 }
 
 .btn-hero-primary {
@@ -278,6 +282,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   font-size: 0.8rem;
   color: var(--muted);
   letter-spacing: 0.03em;
+  text-align: center;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -329,6 +334,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   background: linear-gradient(135deg, #1da1f2, #7c6af5) !important;
   color: white !important;
   border: none !important;
+  min-height: 44px; /* Mobile touch target optimization */
 }
 .share-btn:hover {
   background: linear-gradient(135deg, #4f8ef7, #a78bfa) !important;
@@ -457,7 +463,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-width: 0; /* Prevents overflow in flexbox */
+  min-width: 0; 
   margin-top: 1rem;
 }
 
@@ -499,6 +505,8 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 0.75rem;
+  flex-wrap: wrap; /* Prevents text collisions on small screens */
+  gap: 0.5rem;
 }
 
 .action-company {
@@ -537,6 +545,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   overflow-x: auto;
   width: 100%;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.5rem; /* Prevents clipping of custom scrollbars */
 }
 
 .prod-table {
@@ -544,7 +553,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   border-collapse: collapse;
   text-align: left;
   font-size: 0.9rem;
-  min-width: 800px; /* Forces scroll on small screens */
+  min-width: 800px; 
 }
 
 .prod-table th {
@@ -594,7 +603,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   font-size: 0.8rem;
   font-weight: 500;
   background: rgba(245, 158, 11, 0.1);
-  padding: 0.25rem 0.6rem;
+  padding: 0.35rem 0.7rem; /* Slightly larger for touch */
   border-radius: 6px;
   white-space: nowrap;
 }
@@ -607,6 +616,8 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   margin-top: 1.5rem;
   padding-top: 1rem;
   border-top: 1px solid var(--border);
+  flex-wrap: wrap; /* Helps on narrow screens */
+  gap: 1rem;
 }
 
 .page-info {
@@ -623,13 +634,14 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--text);
-  padding: 0.4rem;
+  padding: 0.5rem 0.75rem; /* Larger touch target */
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
+  min-width: 40px;
 }
 
 .page-btn:hover:not(:disabled) {
@@ -642,41 +654,6 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   cursor: not-allowed;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════════
-   RESPONSIVE (MOBILE) OVERRIDES
-═══════════════════════════════════════════════════════════════════════════════ */
-
-@media (max-width: 1024px) {
-  .dash-main { padding: 2rem; }
-  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (max-width: 768px) {
-  .hero-nav { padding: 1.25rem; }
-  .hero-section { padding: 4rem 1.5rem; }
-  .stats-row { gap: 1.5rem; }
-  
-  .dash-main { padding: 1.5rem 1rem; }
-  .dash-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
-  
-  .analytics-grid-prod { grid-template-columns: 1fr; }
-  .span-full { grid-column: auto; }
-  
-  .table-section { padding: 1rem; }
-  .action-panel-prod { padding: 1.25rem; }
-  
-  .nav-cta { padding: 0.6rem 1rem; width: 100%; justify-content: center; }
-  .dash-header > div:last-child { width: 100%; }
-}
-
-@media (max-width: 480px) {
-  .kpi-grid { grid-template-columns: 1fr; }
-  .action-grid { grid-template-columns: 1fr; }
-  
-  .btn-hero-primary, .btn-hero-secondary { max-width: 100%; }
-  .hero-headline { font-size: 2.2rem; }
-}
-
 /* Table Search & Sorting Additions */
 .search-box {
   display: flex;
@@ -687,6 +664,8 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   border-radius: 8px;
   padding: 0.6rem 1rem;
   transition: all 0.2s ease;
+  width: 100%; /* Default to 100% so it can be controlled by parent */
+  max-width: 300px; /* Cap width on desktop */
 }
 
 .search-box:focus-within {
@@ -701,7 +680,8 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   font-family: var(--font-body);
   font-size: 0.9rem;
   outline: none;
-  width: 240px;
+  width: 100%;
+  min-width: 0; /* Prevents overflow */
 }
 
 .search-box input::placeholder {
@@ -724,8 +704,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   gap: 6px;
 }
 
-/* Add to existing styles in */
-
+/* Legal Pages */
 .legal-root {
   min-height: 100vh;
   background-color: #0d1220;
@@ -771,6 +750,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   justify-content: center;
   gap: 2rem;
   margin-bottom: 1rem;
+  flex-wrap: wrap; /* Allows links to stack cleanly on mobile */
 }
 
 .footer-link {
@@ -780,6 +760,7 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
   cursor: pointer;
   font-size: 0.9rem;
   transition: color 0.2s;
+  padding: 0.5rem; /* Touch target */
 }
 
 .footer-link:hover {
@@ -789,4 +770,53 @@ button { cursor: pointer; font-family: var(--font-body); border: none; backgroun
 .footer-copyright {
   color: #475569;
   font-size: 0.8rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE (MOBILE) OVERRIDES
+═══════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1024px) {
+  .dash-main { padding: 2rem; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .legal-container { margin: 2rem auto; }
+}
+
+@media (max-width: 768px) {
+  .hero-nav { padding: 1.25rem; justify-content: center; }
+  .hero-section { padding: 4rem 1.5rem; }
+  .stats-row { gap: 1.5rem; }
+  
+  .dash-main { padding: 1.5rem 1rem; }
+  .dash-header { flex-direction: column; align-items: stretch; gap: 1rem; }
+  .search-box { max-width: 100%; } /* Search box takes full width on mobile */
+  
+  .analytics-grid-prod { grid-template-columns: 1fr; }
+  .span-full { grid-column: auto; }
+  
+  .table-section { padding: 1rem; }
+  .action-panel-prod { padding: 1.25rem; }
+  
+  .nav-cta { padding: 0.6rem 1rem; width: 100%; justify-content: center; }
+  .dash-header > div:last-child { width: 100%; }
+
+  .legal-root { padding: 1.5rem 1rem; }
+  .legal-container h1 { font-size: 2rem; margin-bottom: 1.5rem; }
+
+  .footer-links { gap: 1rem; }
+}
+
+@media (max-width: 480px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+  .action-grid { grid-template-columns: 1fr; }
+  
+  .btn-hero-primary, .btn-hero-secondary { max-width: 100%; }
+  .hero-headline { font-size: 2.2rem; line-height: 1.15; }
+  
+  .stats-row { flex-direction: column; align-items: center; gap: 2rem; }
+  .stat-item { width: 100%; }
+  
+  .pagination { flex-direction: column; gap: 1rem; }
+  .page-controls { width: 100%; justify-content: space-between; }
+  .page-btn { flex: 1; }
 }
