@@ -1,3 +1,4 @@
+// src/App.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from './supabaseClient';
 import './App.css';
@@ -735,16 +736,11 @@ function Dashboard({ session, onSignOut, isFetchingEmails }) {
                         </td>
                       </tr>
                     ) : (
-                     paginatedApps.map(app => {
-                      const config =    STATUS_CONFIG[app.status] || STATUS_CONFIG.applied;
-                      return (
-                        <tr 
-                          key={app.id} 
-                          /* Ensure the tooltip has content */
-                          title={app.summary ? `AI Summary: ${app.summary}` : 'No summary available'} 
-                          className="hoverable-row"
-                        >
-      <td className="font-medium text-white">{app.company}</td>
+                      paginatedApps.map(app => {
+                        const config = STATUS_CONFIG[app.status] || STATUS_CONFIG.applied;
+                        return (
+                          <tr key={app.id} title={app.summary ? `Summary: ${app.summary}` : ''}>
+                            <td className="font-medium text-white">{app.company}</td>
                             <td>
                               <div className="cell-flex-col">
                                 <span>{app.role}</span>
