@@ -289,7 +289,6 @@ function HistoryPage({ onConfirm, loading }) {
   );
 }
 
-// Keep your Dashboard exactly as you already have it
 function Dashboard({ session, onSignOut, isFetchingEmails }) {
   const [apps, setApps] = useState([]);
   const [loadingDb, setLoadingDb] = useState(true);
@@ -517,10 +516,23 @@ function Dashboard({ session, onSignOut, isFetchingEmails }) {
 
   const handleShare = async () => {
     const element = document.getElementById('shareable-dashboard');
-    const canvas = await html2canvas(element, { backgroundColor: '#0d1220', scale: 2 });
+    const canvas = await html2canvas(element, { 
+      backgroundColor: '#0d1220', 
+      scale: window.devicePixelRatio || 2,
+      useCORS: true,
+      allowTaint: true,
+      onclone: (clonedDoc) => {
+        const clonedEl = clonedDoc.getElementById('shareable-dashboard');
+        if (clonedEl) {
+          clonedEl.style.animation = 'none';
+          clonedEl.style.opacity = '1';
+          clonedEl.style.transform = 'none';
+        }
+      }
+    });
     const link = document.createElement('a');
     link.download = 'refloe-production-dashboard.png';
-    link.href = canvas.toDataURL('image/png');
+    link.href = canvas.toDataURL('image/png', 1.0);
     link.click();
   };
 
@@ -726,7 +738,7 @@ function Dashboard({ session, onSignOut, isFetchingEmails }) {
                       paginatedApps.map(app => {
                         const config = STATUS_CONFIG[app.status] || STATUS_CONFIG.applied;
                         return (
-                          <tr key={app.id}>
+                          <tr key={app.id} title={app.summary ? `Summary: ${app.summary}` : ''}>
                             <td className="font-medium text-white">{app.company}</td>
                             <td>
                               <div className="cell-flex-col">
