@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+import time
 from supabase import create_client, Client
 
 # --- 1. Global Config ---
@@ -44,34 +45,42 @@ def analyze_email_with_ai(email_body, received_date):
         "}"
     )
 
-    # We pass the received_date into the user prompt to give the AI timeline context
     user_content = f"Email Received Date: {received_date}\n\nEmail Content:\n{email_body}"
 
-    try:
-        response = requests.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            data=json.dumps({
-                "model": "stepfun/step-3.5-flash:free",
-                "messages": [
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": user_content}
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.1 
-            })
-        )
-        response.raise_for_status()
-        content = response.json()['choices'][0]['message']['content']
-        ai_json = json.loads(content)
-        
-        return {**DEFAULT_STRUCTURE, **ai_json}
-    except Exception as e:
-        print(f"AI Analysis failed: {str(e)}")
-        return DEFAULT_STRUCTURE
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                data=json.dumps({
+                    "model": "stepfun/step-3.5-flash:free",
+                    "messages": [
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": user_content}
+                    ],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0.1 
+                })
+            )
+            response.raise_for_status()
+            content = response.json()['choices'][0]['message']['content']
+            ai_json = json.loads(content)
+            
+            return {**DEFAULT_STRUCTURE, **ai_json}
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429 and attempt < max_retries - 1:
+                print(f"Rate limited (429). Retrying in {2 ** attempt} seconds...")
+                time.sleep(2 ** attempt)
+                continue
+            print(f"AI Analysis failed: {str(e)}")
+            return DEFAULT_STRUCTURE
+        except Exception as e:
+            print(f"AI Analysis failed: {str(e)}")
+            return DEFAULT_STRUCTURE
 
 def handler(event, context):
     print(f"Initializing Classifier for Supabase: {SUPABASE_URL}")
@@ -85,12 +94,11 @@ def handler(event, context):
             payload = json.loads(record['body'])
             email_body = payload.get('email_body')
             user_id = payload.get('user_id')
-            received_date = payload.get('applied_date') # Extracted from the email fetcher
+            received_date = payload.get('applied_date')
             
             if not email_body or not user_id:
                 continue
 
-            # Pass the received_date into the analysis function
             ai_result = analyze_email_with_ai(email_body, received_date)
 
             if ai_result.get("is_job_application") and ai_result.get("company_name"):
@@ -112,6 +120,8 @@ def handler(event, context):
                 
                 print(f"Inserting {data['company_name']} ({data['specific_stage']}) for User {user_id}")
                 supabase.table("ai_classifications").insert(data).execute()
+            
+            time.sleep(1)
                 
         except Exception as e:
             print(f"Error processing SQS record: {str(e)}")
