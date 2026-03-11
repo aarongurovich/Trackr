@@ -4,7 +4,7 @@ import './App.css';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, PieChart, Pie, CartesianGrid, Legend,
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, ComposedChart, Line
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, ComposedChart
 } from 'recharts';
 import html2canvas from 'html2canvas';
 import { BrowserRouter, Routes, Route, useNavigate, Link } from 'react-router-dom';
@@ -147,11 +147,10 @@ function Nav({ onLogoClick, actions, dark, onToggleDark }) {
       <button
         className="btn btn-ghost theme-toggle"
         onClick={onToggleDark}
-        title="Toggle dark mode"
+        title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
         aria-label="Toggle dark mode"
-        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
       >
-        <Ico.Moon /> 
+        {dark ? <Ico.Sun /> : <Ico.Moon />}
       </button>
     </nav>
   );
