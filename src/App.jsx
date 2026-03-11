@@ -1,4 +1,3 @@
-// src/App.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from './supabaseClient';
 import './App.css';
@@ -8,1003 +7,765 @@ import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis
 } from 'recharts';
 import html2canvas from 'html2canvas';
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  useNavigate,
-  Link
-} from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, Link } from 'react-router-dom';
 
-const Icon = {
-  Briefcase: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>,
-  Zap: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>,
-  TrendingUp: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
-  CheckCircle: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
-  ArrowRight: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>,
-  LogOut: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
-  Inbox: () => <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>,
-  Clock: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-  Sparkles: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>,
-  MapPin: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>,
-  DollarSign: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>,
-  AlertCircle: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>,
-  Calendar: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>,
-  ChevronLeft: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>,
-  ChevronRight: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>,
-  ChevronUp: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>,
-  ChevronDown: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>,
-  Target: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
-  Search: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
+// ── Icons ────────────────────────────────────────────────────────────────────
+
+const Ico = {
+  Briefcase: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>,
+  TrendUp: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
+  Check: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  Arrow: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>,
+  LogOut: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  Inbox: () => <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>,
+  Cal: () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  Alert: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+  Spark: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>,
+  ChevL: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>,
+  ChevR: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>,
+  ChevU: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>,
+  ChevD: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
+  Target: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
+  Search: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  Download: () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+  Mail: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>,
+  Shield: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
 };
 
-const STATUS_CONFIG = {
-  applied: { label: 'Applied', color: '#60a5fa', bg: 'rgba(96,165,250,0.15)' },
-  interview: { label: 'Interview', color: '#a78bfa', bg: 'rgba(167,139,250,0.15)' },
-  interviewing: { label: 'Interview', color: '#a78bfa', bg: 'rgba(167,139,250,0.15)' },
-  offer: { label: 'Offer', color: '#34d399', bg: 'rgba(52,211,153,0.15)' },
-  rejected: { label: 'Rejected', color: '#f87171', bg: 'rgba(248,113,113,0.15)' },
-  ghosted: { label: 'Ghosted', color: '#94a3b8', bg: 'rgba(148,163,184,0.15)' },
+// ── Status config ─────────────────────────────────────────────────────────────
+
+const STATUS = {
+  applied:      { label: 'Applied',    color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+  interview:    { label: 'Interview',  color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
+  interviewing: { label: 'Interview',  color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
+  offer:        { label: 'Offer',      color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
+  rejected:     { label: 'Rejected',   color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+  ghosted:      { label: 'Ghosted',    color: '#64748b', bg: '#f8fafc', border: '#e2e8f0' },
 };
 
-const PIE_COLORS = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#38bdf8'];
+const CHART_COLORS = ['#7c3aed', '#3b82f6', '#059669', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-const CustomColorTooltip = ({ active, payload }) => {
-  if (active && payload && payload.length) {
-    const data = payload[0];
-    const color = data.payload.color || data.color || data.fill || '#f0f4ff';
-    return (
-      <div style={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '8px', padding: '10px 14px', fontSize: '13px' }}>
-        <span style={{ color, fontWeight: 600 }}>
-          {data.payload.name || data.name}: {data.value}
-        </span>
-      </div>
-    );
-  }
-  return null;
+// ── Tooltip ───────────────────────────────────────────────────────────────────
+
+const ChartTip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0];
+  const color = d.payload?.color || d.fill || '#7c3aed';
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e2e2ec', borderRadius: 10, padding: '7px 12px', fontSize: 13, fontFamily: 'Figtree, sans-serif', boxShadow: '0 8px 24px rgba(10,10,20,0.1)' }}>
+      <span style={{ color, fontWeight: 700 }}>{d.payload?.name || d.name}: {d.value}</span>
+    </div>
+  );
 };
 
-const isSimilarCompany = (name1, name2) => {
-  if (!name1 || !name2) return false;
-  const normalize = s => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
-  const n1 = normalize(name1);
-  const n2 = normalize(name2);
+// ── Company matching ──────────────────────────────────────────────────────────
 
+const isSimilarCompany = (a, b) => {
+  if (!a || !b) return false;
+  const norm = s => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
+  const n1 = norm(a); const n2 = norm(b);
   if (n1 === n2) return true;
-
-  const stopWords = ['inc', 'corp', 'llc', 'ltd', 'company', 'brands', 'group', 'the', 'co', 'technologies', 'solutions', 'global', 'careers', 'talent', 'team', 'usa', 'na', 'system', 'systems', 'network', 'networks'];
-
-  const clean1 = n1.split(/\s+/).filter(w => !stopWords.includes(w) && w.length > 1);
-  const clean2 = n2.split(/\s+/).filter(w => !stopWords.includes(w) && w.length > 1);
-
-  if (clean1.length === 0 || clean2.length === 0) return false;
-
-  const s1 = clean1.join(' ');
-  const s2 = clean2.join(' ');
-
+  const stop = ['inc','corp','llc','ltd','company','brands','group','the','co','technologies','solutions','global','careers','talent','team','usa','na','system','systems','network','networks'];
+  const c1 = n1.split(/\s+/).filter(w => !stop.includes(w) && w.length > 1);
+  const c2 = n2.split(/\s+/).filter(w => !stop.includes(w) && w.length > 1);
+  if (!c1.length || !c2.length) return false;
+  const s1 = c1.join(' '); const s2 = c2.join(' ');
   if (s1 === s2) return true;
   if ((s1.startsWith(s2) || s2.startsWith(s1)) && Math.min(s1.length, s2.length) >= 3) return true;
-  if (clean1[0] === clean2[0] && clean1[0].length >= 3) return true;
+  if (c1[0] === c2[0] && c1[0].length >= 3) return true;
   if (` ${s1} `.includes(` ${s2} `) || ` ${s2} `.includes(` ${s1} `)) return true;
-  if (clean1.length > clean2.length && clean1.slice(0, clean2.length).join(' ') === s2) return true;
-  if (clean2.length > clean1.length && clean2.slice(0, clean1.length).join(' ') === s1) return true;
-
   return false;
 };
 
-function PrivacyPage() {
-  const navigate = useNavigate();
+// ── Ticker data ───────────────────────────────────────────────────────────────
 
+const TICKER_ITEMS = [
+  'AI-Powered Tracking', 'Gmail & Outlook', 'Zero Manual Entry',
+  'Live Pipeline', 'Smart Classification', 'Instant Setup',
+  'Interview Analytics', 'Offer Tracking', 'Application Intel',
+];
+
+// ── Nav ───────────────────────────────────────────────────────────────────────
+
+function Nav({ onLogoClick, actions }) {
   return (
-    <div className="legal-root">
-      <nav className="hero-nav">
-        <span className="nav-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Refloe</span>
-        <button className="nav-cta" onClick={() => navigate('/')}>
-          <Icon.ChevronLeft /> Back
-        </button>
-      </nav>
-      <div className="legal-container">
-        <h1>Privacy Policy for Refloe</h1>
-        <section>
-          <h3>Introduction</h3>
-          <p>Refloe provides an AI-powered job application tracking service. We are committed to protecting your personal data and your privacy.</p>
-        </section>
-        <section>
-          <h3>Information We Collect</h3>
-          <ul>
-            <li><strong>Google User Data:</strong> When you connect your Gmail account, we request access to the <code>https://www.googleapis.com/auth/gmail.readonly</code> scope. This allows our serverless infrastructure to scan your inbox for job-related communications.</li>
-            <li><strong>Profile Information:</strong> We collect your name and email address through Google and Microsoft identity services to manage your user account.</li>
-          </ul>
-        </section>
-        <section>
-          <h3>How We Use Your Data</h3>
-          <ul>
-            <li><strong>Automated Tracking:</strong> Our system scans for emails from the last 24 hours (or up to 3 months during initial setup) to detect job application updates.</li>
-            <li><strong>AI Analysis:</strong> Relevant email content is processed via the OpenRouter API (using the Step-3.5-flash model) to extract company names, job titles, and application statuses.</li>
-            <li><strong>Dashboard Visualization:</strong> Extracted data is stored in Supabase to populate your visual job pipeline.</li>
-          </ul>
-        </section>
-        <section>
-          <h3>Data Protection</h3>
-          <p>Your data is stored securely using Supabase (PostgreSQL) and processed within AWS Lambda serverless infrastructure. We do not sell your personal information or email data to third parties.</p>
-        </section>
-        <section>
-          <h3>User Rights</h3>
-          <p>You may disconnect your email provider or delete your account and associated data at any time through the application settings.</p>
-        </section>
+    <nav className="nav">
+      <div className="nav-logo" onClick={onLogoClick}>
+        <div className="nav-mark">R</div>
+        Refloe
+      </div>
+      <div className="nav-spacer" />
+      {actions}
+    </nav>
+  );
+}
+
+// ── Ticker ────────────────────────────────────────────────────────────────────
+
+function Ticker() {
+  const doubled = [...TICKER_ITEMS, ...TICKER_ITEMS];
+  return (
+    <div className="ticker-wrap" aria-hidden="true">
+      <div className="ticker-track">
+        {doubled.map((t, i) => (
+          <span className="ticker-item" key={i}>
+            {t}
+            <span className="ticker-sep">◆</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Legal pages ───────────────────────────────────────────────────────────────
+
+function PrivacyPage() {
+  const nav = useNavigate();
+  return (
+    <div className="legal-page">
+      <Nav onLogoClick={() => nav('/')} actions={<button className="btn btn-ghost" onClick={() => nav('/')}><Ico.ChevL /> Back</button>} />
+      <div className="legal-wrap">
+        <h1>Privacy Policy</h1>
+        <section><h3>Introduction</h3><p>Refloe provides an AI-powered job application tracking service. We are committed to protecting your personal data and your privacy.</p></section>
+        <section><h3>Information We Collect</h3><ul>
+          <li><strong>Google User Data:</strong> We request the <code>https://www.googleapis.com/auth/gmail.readonly</code> scope to scan your inbox for job-related communications.</li>
+          <li><strong>Profile Information:</strong> We collect your name and email address through Google and Microsoft identity services.</li>
+        </ul></section>
+        <section><h3>How We Use Your Data</h3><ul>
+          <li><strong>Automated Tracking:</strong> Our system scans for emails to detect job application updates.</li>
+          <li><strong>AI Analysis:</strong> Relevant email content is processed via the OpenRouter API to extract company names, job titles, and application statuses.</li>
+          <li><strong>Dashboard:</strong> Extracted data is stored in Supabase to populate your visual job pipeline.</li>
+        </ul></section>
+        <section><h3>Data Protection</h3><p>Your data is stored securely using Supabase (PostgreSQL) and processed within AWS Lambda. We do not sell your personal information to third parties.</p></section>
+        <section><h3>User Rights</h3><p>You may disconnect your email provider or delete your account at any time through the application settings.</p></section>
       </div>
     </div>
   );
 }
 
 function TermsPage() {
-  const navigate = useNavigate();
-
+  const nav = useNavigate();
   return (
-    <div className="legal-root">
-      <nav className="hero-nav">
-        <span className="nav-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Refloe</span>
-        <button className="nav-cta" onClick={() => navigate('/')}>
-          <Icon.ChevronLeft /> Back
-        </button>
-      </nav>
-      <div className="legal-container">
-        <h1>Terms of Service for Refloe</h1>
-        <section>
-          <h3>Service Description</h3>
-          <p>Refloe is an automated tracking tool. By using the service, you authorize Refloe to access your designated email inbox to identify and organize job application data.</p>
-        </section>
-        <section>
-          <h3>User Responsibilities</h3>
-          <p>You are responsible for maintaining the security of your account. You must not use Refloe for any illegal activities or to violate the terms of service of your email provider (Google or Microsoft).</p>
-        </section>
-        <section>
-          <h3>Limitations of Liability</h3>
-          <p>Refloe uses AI for data extraction. While we strive for accuracy, we are not responsible for any errors in application tracking, missed deadlines, or incorrect status updates generated by the AI engine.</p>
-        </section>
-        <section>
-          <h3>Infrastructure</h3>
-          <p>The service relies on third-party providers including AWS, Supabase, and OpenRouter. Service availability is subject to the uptime of these providers.</p>
-        </section>
-        <section>
-          <h3>Modifications</h3>
-          <p>We reserve the right to modify these terms or the service at any time. Continued use of Refloe constitutes acceptance of updated terms.</p>
-        </section>
+    <div className="legal-page">
+      <Nav onLogoClick={() => nav('/')} actions={<button className="btn btn-ghost" onClick={() => nav('/')}><Ico.ChevL /> Back</button>} />
+      <div className="legal-wrap">
+        <h1>Terms of Service</h1>
+        <section><h3>Service Description</h3><p>Refloe is an automated tracking tool. By using the service, you authorize Refloe to access your designated email inbox to identify and organize job application data.</p></section>
+        <section><h3>User Responsibilities</h3><p>You are responsible for maintaining the security of your account and must not use Refloe for any illegal activities.</p></section>
+        <section><h3>Limitations of Liability</h3><p>Refloe uses AI for data extraction. While we strive for accuracy, we are not responsible for errors in application tracking or missed deadlines.</p></section>
+        <section><h3>Infrastructure</h3><p>The service relies on third-party providers including AWS, Supabase, and OpenRouter. Service availability is subject to the uptime of these providers.</p></section>
+        <section><h3>Modifications</h3><p>We reserve the right to modify these terms at any time. Continued use of Refloe constitutes acceptance of updated terms.</p></section>
       </div>
     </div>
   );
 }
 
-function HeroPage({ onGetStarted, onOutlookLogin, loading }) {
-  const navigate = useNavigate();
+// ── Hero ──────────────────────────────────────────────────────────────────────
+
+function HeroPage({ onGmail, onOutlook, loading }) {
+  const steps = [
+    { n: '01', title: 'Connect your inbox', desc: 'Link Gmail or Outlook in under 60 seconds. No forwarding rules.' },
+    { n: '02', title: 'AI reads everything', desc: 'Every application email is classified, dated, and enriched automatically.' },
+    { n: '03', title: 'Watch your pipeline', desc: 'Dashboard updates live as rejections, interviews, and offers arrive.' },
+  ];
 
   const stats = [
-    { value: '2 min', label: 'Average setup' },
-    { value: '100%', label: 'Auto-tracked' },
-    { value: '0', label: 'Manual entries' },
+    { n: '2 min', l: 'Setup time' },
+    { n: '100%', l: 'Auto-tracked' },
+    { n: '0',    l: 'Manual entries' },
   ];
 
   return (
-    <div className="hero-root">
-      <div className="hero-bg">
-        <div className="mesh-blob blob-1" />
-        <div className="mesh-blob blob-2" />
-        <div className="mesh-blob blob-3" />
-        <div className="grid-overlay" />
-      </div>
+    <div className="hero-root page">
+      <Nav
+        onLogoClick={() => {}}
+        actions={
+          <button className="btn btn-primary" onClick={onGmail} disabled={loading}>
+            {loading ? <span className="btn-loading">Connecting…</span> : <><Ico.Mail /> Get started free</>}
+          </button>
+        }
+      />
+      <Ticker />
 
-      <nav className="hero-nav">
-        <span className="nav-logo">Refloe</span>
-        <button className="nav-cta" onClick={onGetStarted} disabled={loading}>
-          {loading ? 'Loading…' : 'Get Started'}
-          <Icon.ArrowRight />
-        </button>
-      </nav>
+      <div className="hero-main">
+        {/* Left */}
+        <div className="hero-left">
+          <div className="hero-kicker">
+            <span className="kicker-dot" />
+            AI-Powered Job Tracking
+          </div>
 
-      <section className="hero-section">
-        <div className="hero-badge">
-          <Icon.Sparkles />
-          <span>AI-Powered Job Tracking</span>
-        </div>
+          <h1 className="hero-h1">
+            Your job search,<br />
+            <em>on autopilot.</em>
+          </h1>
 
-        <h1 className="hero-headline">
-          Your job search,<br />
-          <span className="headline-accent">on autopilot.</span>
-        </h1>
+          <p className="hero-p">
+            Connect Gmail or Outlook and let AI handle the rest. Refloe scans your inbox,
+            extracts every application, and builds your pipeline — automatically, in real time.
+          </p>
 
-        <p className="hero-sub">
-          Connect Gmail or Outlook. Let AI do the work. Never lose track of an application again —
-          Refloe scans your emails and builds your pipeline automatically.
-        </p>
-
-        <div className="hero-cta-group" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button className="btn-hero-primary" onClick={onGetStarted} disabled={loading}>
-              {loading ? (
-                <span className="btn-loading">Verifying…</span>
-              ) : (
-                <>
-                  <span>Sign in with Google</span>
-                  <Icon.ArrowRight />
-                </>
-              )}
+          <div className="hero-btns">
+            <button className="btn btn-primary btn-lg" onClick={onGmail} disabled={loading}>
+              {loading ? <span className="btn-loading">Verifying…</span> : <><Ico.Mail /> Sign in with Gmail</>}
             </button>
-
-            <button
-              className="btn-hero-secondary"
-              onClick={onOutlookLogin}
-              disabled={loading}
-              style={{ backgroundColor: '#2f2f2f', color: 'white', border: '1px solid #444', padding: '0.8rem 1.5rem', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', fontWeight: '500' }}
-            >
-              {loading ? (
-                <span className="btn-loading">Verifying…</span>
-              ) : (
-                <>
-                  <span>Sign in with Outlook</span>
-                  <Icon.ArrowRight />
-                </>
-              )}
+            <button className="btn btn-secondary btn-lg" onClick={onOutlook} disabled={loading}>
+              {loading ? <span className="btn-loading">Verifying…</span> : <><Ico.Mail /> Sign in with Outlook</>}
             </button>
           </div>
-          <p className="cta-footnote">Free to use · No credit card required</p>
+
+          <div className="hero-fine">
+            <span><span className="check-icon"><Ico.Check /></span> Free to use</span>
+            <span><span className="check-icon"><Ico.Check /></span> No credit card</span>
+            <span><span className="check-icon"><Ico.Check /></span> Cancel anytime</span>
+          </div>
         </div>
 
-        <div className="stats-row">
-          {stats.map(s => (
-            <div className="stat-item" key={s.label}>
-              <span className="stat-value">{s.value}</span>
-              <span className="stat-label">{s.label}</span>
+        {/* Right */}
+        <div className="hero-right">
+          <div className="hr-label">How it works</div>
+
+          {steps.map(s => (
+            <div className="step-card" key={s.n}>
+              <div className="step-n">{s.n}</div>
+              <div className="step-text">
+                <h4>{s.title}</h4>
+                <p>{s.desc}</p>
+              </div>
             </div>
           ))}
+
+          <div className="stats-row">
+            {stats.map(s => (
+              <div className="stat-cell" key={s.l}>
+                <div className="sc-n">{s.n}</div>
+                <div className="sc-l">{s.l}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="secure-badge">
+            <span className="secure-dot" />
+            <Ico.Shield />
+            Read-only access — your emails never leave your account
+          </div>
         </div>
-      </section>
+      </div>
 
       <footer className="hero-footer">
         <div className="footer-links">
           <Link to="/privacy" className="footer-link">Privacy Policy</Link>
           <Link to="/terms" className="footer-link">Terms of Service</Link>
         </div>
-        <p className="footer-copyright">© 2026 Refloe. All rights reserved.</p>
+        <span className="footer-copy">© 2026 Refloe. All rights reserved.</span>
       </footer>
     </div>
   );
 }
 
+// ── History ───────────────────────────────────────────────────────────────────
+
 function HistoryPage({ onConfirm, loading }) {
+  const nav = useNavigate();
   return (
-    <div className="hero-root">
-      <div className="hero-bg"><div className="grid-overlay" /></div>
-      <section className="hero-section">
-        <h1 className="hero-headline" style={{ fontSize: '2.5rem' }}>Import your history</h1>
-        <p className="hero-sub">How many months of emails should Refloe scan to build your initial pipeline?</p>
-        <div className="hero-cta-group" style={{ flexDirection: 'row', gap: '1rem', justifyContent: 'center' }}>
+    <div className="history-page page">
+      <Nav onLogoClick={() => nav('/')} actions={null} />
+      <div className="history-box">
+        <div className="history-icon-wrap"><Ico.Mail /></div>
+        <h2 className="history-h">How far back<br /><em>should we look?</em></h2>
+        <p className="history-sub">
+          We'll scan your inbox and extract all job-related emails within your chosen window to build your initial pipeline.
+        </p>
+        <div className="history-opts">
           {[1, 2, 3].map(m => (
-            <button key={m} className="btn-hero-primary" onClick={() => onConfirm(m)} disabled={loading} style={{ padding: '1rem 2rem' }}>
-              {m} Month{m > 1 ? 's' : ''}
+            <button key={m} className="history-opt" onClick={() => onConfirm(m)} disabled={loading}>
+              <span className="ho-n">{m}</span>
+              <span className="ho-l">Month{m > 1 ? 's' : ''}</span>
             </button>
           ))}
         </div>
-        {loading && <p className="scanning-text" style={{ marginTop: '2rem' }}><Icon.Sparkles /> Preparing your scan...</p>}
-      </section>
+        {loading && (
+          <div className="scan-msg">
+            <span className="scan-dot" />
+            <Ico.Spark /> Preparing your scan…
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
 function Dashboard({ session, onSignOut, isFetchingEmails }) {
   const [apps, setApps] = useState([]);
-  const [loadingDb, setLoadingDb] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: 'rawDate', direction: 'desc' });
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState({ key: 'rawDate', dir: 'desc' });
+  const [page, setPage] = useState(1);
+  const PER = 10;
 
-  const fetchClassifications = async () => {
-    setLoadingDb(true);
-    const { data, error: dbError } = await supabase
+  const fetchApps = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
       .from('ai_classifications')
       .select('*')
       .eq('user_id', session.id)
       .order('applied_date', { ascending: false, nullsFirst: false });
 
-    if (!dbError && data) {
-      const companyGroups = [];
+    if (!error && data) {
+      const groups = [];
       data.forEach(app => {
-        const rawName = (app.company_name || 'Unknown').trim();
-        const rawDateStr = app.applied_date || app.parsed_date;
-        const appDate = rawDateStr ? new Date(rawDateStr) : new Date(0);
-
-        const existingGroup = companyGroups.find(g => isSimilarCompany(g.company, rawName));
-
-        if (!existingGroup) {
-          companyGroups.push({
-            id: app.id,
-            company: rawName || 'Unknown Company',
-            role: app.job_title || 'Position',
+        const raw = (app.company_name || 'Unknown').trim();
+        const dateStr = app.applied_date || app.parsed_date;
+        const d = dateStr ? new Date(dateStr) : new Date(0);
+        const ex = groups.find(g => isSimilarCompany(g.company, raw));
+        if (!ex) {
+          groups.push({
+            id: app.id, company: raw, role: app.job_title || 'Position',
             status: app.status?.toLowerCase() || 'applied',
-            rawDate: rawDateStr,
-            earliestDate: appDate,
+            rawDate: dateStr, earliest: d,
             date: app.applied_date ? new Date(app.applied_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
             type: (app.role_type && app.role_type !== 'Unknown') ? app.role_type : 'Full-time',
-            stage: app.specific_stage,
-            location: app.location,
-            salary: app.salary_estimate,
-            nextAction: app.next_action,
+            stage: app.specific_stage, location: app.location,
+            salary: app.salary_estimate, nextAction: app.next_action,
             deadline: app.action_deadline ? new Date(app.action_deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null,
-            summary: app.summary
+            summary: app.summary,
           });
         } else {
-          if (rawName.length < existingGroup.company.length && rawName.length >= 3) {
-            existingGroup.company = rawName;
-          }
-          if (appDate < existingGroup.earliestDate && appDate.getTime() > 0) {
-            existingGroup.earliestDate = appDate;
-          }
-          if ((!existingGroup.role || existingGroup.role === 'Position' || existingGroup.role === 'Unknown') && app.job_title && app.job_title !== 'Unknown') {
-            existingGroup.role = app.job_title;
-          }
-          if ((!existingGroup.type || existingGroup.type === 'Full-time') && app.role_type && app.role_type !== 'Unknown') {
-            existingGroup.type = app.role_type;
-          }
-          if (!existingGroup.location && app.location) {
-            existingGroup.location = app.location;
-          }
-          if (!existingGroup.salary && app.salary_estimate) {
-            existingGroup.salary = app.salary_estimate;
-          }
-          if (!existingGroup.summary && app.summary) {
-            existingGroup.summary = app.summary;
-          }
-          if (!existingGroup.stage && app.specific_stage) {
-            existingGroup.stage = app.specific_stage;
-          }
+          if (raw.length < ex.company.length && raw.length >= 3) ex.company = raw;
+          if (d < ex.earliest && d.getTime() > 0) ex.earliest = d;
+          if ((!ex.role || ex.role === 'Position') && app.job_title && app.job_title !== 'Unknown') ex.role = app.job_title;
+          if (ex.type === 'Full-time' && app.role_type && app.role_type !== 'Unknown') ex.type = app.role_type;
+          if (!ex.location && app.location) ex.location = app.location;
+          if (!ex.summary && app.summary) ex.summary = app.summary;
+          if (!ex.stage && app.specific_stage) ex.stage = app.specific_stage;
         }
       });
-
-      setApps(companyGroups);
+      setApps(groups);
     }
-    setLoadingDb(false);
+    setLoading(false);
   };
 
   useEffect(() => {
-    if (!session || !session.id) {
-      setLoadingDb(false);
-      return;
-    }
-
-    let isMounted = true;
-    fetchClassifications();
-
-    const channel = supabase
-      .channel('db-changes')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'ai_classifications', filter: `user_id=eq.${session.id}` },
-        () => {
-          if (isMounted) fetchClassifications();
-        }
-      )
+    if (!session?.id) { setLoading(false); return; }
+    let mounted = true;
+    fetchApps();
+    const ch = supabase.channel('db')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ai_classifications', filter: `user_id=eq.${session.id}` },
+        () => { if (mounted) fetchApps(); })
       .subscribe();
-
-    return () => {
-      isMounted = false;
-      supabase.removeChannel(channel);
-    };
+    return () => { mounted = false; supabase.removeChannel(ch); };
   }, [session?.id]);
 
-  const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
+  const handleSort = k => setSort(s => ({ key: k, dir: s.key === k && s.dir === 'asc' ? 'desc' : 'asc' }));
 
-  const { stats, statusData, roleData, timelineData, radarData, actionItems, paginatedApps, totalPages } = useMemo(() => {
-    const active = apps.filter(a => ['interview', 'interviewing'].includes(a.status));
+  const derived = useMemo(() => {
+    const active = apps.filter(a => ['interview','interviewing'].includes(a.status));
     const offers = apps.filter(a => a.status === 'offer');
+    const iRate = apps.length ? Math.round(active.length / apps.length * 100) : 0;
+    const oRate = apps.length ? Math.round(offers.length / apps.length * 100) : 0;
 
-    const interviewRate = apps.length > 0 ? Math.round((active.length / apps.length) * 100) : 0;
-    const offerRate = apps.length > 0 ? Math.round((offers.length / apps.length) * 100) : 0;
-
-    const statusD = [
-      { name: 'Applied', count: apps.filter(a => a.status === 'applied').length, color: '#60a5fa' },
-      { name: 'Interview', count: active.length, color: '#a78bfa' },
-      { name: 'Offer', count: offers.length, color: '#34d399' },
-      { name: 'Rejected', count: apps.filter(a => a.status === 'rejected').length, color: '#f87171' }
+    const statusData = [
+      { name: 'Applied',   count: apps.filter(a => a.status === 'applied').length,   color: '#3b82f6' },
+      { name: 'Interview', count: active.length,                                      color: '#7c3aed' },
+      { name: 'Offer',     count: offers.length,                                      color: '#059669' },
+      { name: 'Rejected',  count: apps.filter(a => a.status === 'rejected').length,   color: '#ef4444' },
     ];
 
-    const rolesMap = {};
-    apps.forEach(a => {
-      const type = (a.type && a.type !== 'Unknown') ? a.type : 'Full-time';
-      rolesMap[type] = (rolesMap[type] || 0) + 1;
-    });
-    const roleD = Object.keys(rolesMap).map((k, i) => ({ name: k, value: rolesMap[k], color: PIE_COLORS[i % PIE_COLORS.length] }));
+    const roleMap = {};
+    apps.forEach(a => { const t = a.type || 'Full-time'; roleMap[t] = (roleMap[t]||0)+1; });
+    const roleData = Object.entries(roleMap).map(([k,v],i) => ({ name:k, value:v, color: CHART_COLORS[i%CHART_COLORS.length] }));
 
-    const timeMap = {};
+    const tMap = {};
     apps.forEach(a => {
-      const d = a.earliestDate;
+      const d = a.earliest;
       if (d && !isNaN(d.getTime()) && d.getTime() > 0) {
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        if (!timeMap[key]) {
-          timeMap[key] = { name: label, applications: 0, sortKey: key };
-        }
-        timeMap[key].applications++;
+        const key = d.toISOString().slice(0,10);
+        const lbl = d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+        if (!tMap[key]) tMap[key] = { name:lbl, applications:0, _k:key };
+        tMap[key].applications++;
       }
     });
-    const timeD = Object.values(timeMap).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+    const timeData = Object.values(tMap).sort((a,b)=>a._k.localeCompare(b._k));
 
-    const radarMap = {
-      'Engineering & IT': 0,
-      'Sales & Marketing': 0,
-      'Mgmt & Product': 0,
-      'Design & Creative': 0,
-      'Finance & Admin': 0,
-      'Ops & Support': 0
-    };
-
+    const buckets = {'Engineering':0,'Sales & Mktg':0,'Product & Mgmt':0,'Design':0,'Finance & Ops':0,'Other':0};
     apps.forEach(a => {
-      const t = (a.role || '').toLowerCase();
-      if (/(engineer|developer|data|ai|machine|software|it\b|cloud|tech|backend|frontend|web|system|network)/.test(t)) radarMap['Engineering & IT']++;
-      else if (/(sales|marketing|account|growth|sdr|bdr|ae|brand|seo|social|market)/.test(t)) radarMap['Sales & Marketing']++;
-      else if (/(manager|product|strategy|director|vp|head|chief|consultant|president|founder)/.test(t)) radarMap['Mgmt & Product']++;
-      else if (/(design|ux|ui|content|creative|writer|art|video|media|copy)/.test(t)) radarMap['Design & Creative']++;
-      else if (/(finance|account|hr|legal|admin|talent|recruiter|financial|tax|audit|counsel)/.test(t)) radarMap['Finance & Admin']++;
-      else radarMap['Ops & Support']++;
+      const t = (a.role||'').toLowerCase();
+      if (/(engineer|developer|data|ai|software|backend|frontend|cloud|tech)/.test(t)) buckets['Engineering']++;
+      else if (/(sales|marketing|growth|sdr|bdr|ae|brand|seo)/.test(t)) buckets['Sales & Mktg']++;
+      else if (/(manager|product|director|vp|head|chief|strategy)/.test(t)) buckets['Product & Mgmt']++;
+      else if (/(design|ux|ui|creative|writer|content)/.test(t)) buckets['Design']++;
+      else if (/(finance|account|hr|legal|admin|recruiter|ops)/.test(t)) buckets['Finance & Ops']++;
+      else buckets['Other']++;
     });
-
-    let maxRadar = 1;
-    Object.values(radarMap).forEach(v => { if (v > maxRadar) maxRadar = v; });
-    const radarD = Object.keys(radarMap).map(k => ({ subject: k, count: radarMap[k], fullMark: maxRadar }));
+    let maxR = 1;
+    Object.values(buckets).forEach(v => { if (v>maxR) maxR=v; });
+    const radarData = Object.entries(buckets).map(([k,v])=>({subject:k,count:v,fullMark:maxR}));
 
     const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const topActionItems = apps
-      .filter(a => {
-        if (!a.nextAction || a.nextAction.toLowerCase().includes("continue job search")) return false;
-        const appDate = new Date(a.rawDate || 0);
-        return appDate >= sevenDaysAgo;
-      })
-      .sort((a, b) => new Date(b.rawDate || 0) - new Date(a.rawDate || 0))
-      .slice(0, 8);
+    const week = new Date(now.getTime()-7*86400000);
+    const actionItems = apps
+      .filter(a => a.nextAction && !a.nextAction.toLowerCase().includes('continue job search') && new Date(a.rawDate||0) >= week)
+      .sort((a,b)=>new Date(b.rawDate||0)-new Date(a.rawDate||0))
+      .slice(0,8);
 
-    let processedApps = [...apps];
-
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
-      processedApps = processedApps.filter(app =>
-        (app.company && app.company.toLowerCase().includes(lower)) ||
-        (app.role && app.role.toLowerCase().includes(lower)) ||
-        (app.location && app.location.toLowerCase().includes(lower)) ||
-        (app.status && app.status.toLowerCase().includes(lower))
+    let rows = [...apps];
+    if (search) {
+      const q = search.toLowerCase();
+      rows = rows.filter(a =>
+        (a.company||'').toLowerCase().includes(q) ||
+        (a.role||'').toLowerCase().includes(q) ||
+        (a.location||'').toLowerCase().includes(q) ||
+        (a.status||'').toLowerCase().includes(q)
       );
     }
 
-    processedApps.sort((a, b) => {
-      if (!sortConfig.key) return 0;
-
-      let valA = a[sortConfig.key];
-      let valB = b[sortConfig.key];
-
-      if (sortConfig.key === 'rawDate') {
-        valA = new Date(valA || 0).getTime();
-        valB = new Date(valB || 0).getTime();
-      } else {
-        valA = (valA || '').toString().toLowerCase();
-        valB = (valB || '').toString().toLowerCase();
-      }
-
-      if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
+    rows.sort((a,b) => {
+      let vA = a[sort.key], vB = b[sort.key];
+      if (sort.key==='rawDate') { vA=new Date(vA||0).getTime(); vB=new Date(vB||0).getTime(); }
+      else { vA=(vA||'').toString().toLowerCase(); vB=(vB||'').toString().toLowerCase(); }
+      return vA < vB ? (sort.dir==='asc'?-1:1) : vA > vB ? (sort.dir==='asc'?1:-1) : 0;
     });
 
-    const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
-    const paginated = processedApps.slice(startIdx, startIdx + ITEMS_PER_PAGE);
-    const totalP = Math.max(1, Math.ceil(processedApps.length / ITEMS_PER_PAGE));
+    const start = (page-1)*PER;
+    const paged = rows.slice(start, start+PER);
+    const pages = Math.max(1, Math.ceil(rows.length/PER));
 
-    return {
-      stats: { total: apps.length, active: active.length, interviewRate, offerRate },
-      statusData: statusD,
-      roleData: roleD,
-      timelineData: timeD,
-      radarData: radarD,
-      actionItems: topActionItems,
-      paginatedApps: paginated,
-      totalPages: totalP
-    };
-  }, [apps, currentPage, searchTerm, sortConfig]);
+    return { kpis: { total:apps.length, active:active.length, iRate, oRate }, statusData, roleData, timeData, radarData, actionItems, paged, pages };
+  }, [apps, search, sort, page]);
 
-  const handleShare = async () => {
-    const element = document.getElementById('shareable-dashboard');
-    const canvas = await html2canvas(element, { 
-      backgroundColor: '#0d1220', 
-      scale: window.devicePixelRatio || 2,
-      useCORS: true,
-      allowTaint: true,
-      onclone: (clonedDoc) => {
-        const clonedEl = clonedDoc.getElementById('shareable-dashboard');
-        if (clonedEl) {
-          clonedEl.style.animation = 'none';
-          clonedEl.style.opacity = '1';
-          clonedEl.style.transform = 'none';
-        }
-      }
+  const SortIco = ({k}) => sort.key===k ? (sort.dir==='asc'?<Ico.ChevU/>:<Ico.ChevD/>) : null;
+
+  const handleExport = async () => {
+    const el = document.getElementById('dash-capture');
+    if (!el) return;
+    const c = await html2canvas(el, {
+      backgroundColor: '#f7f7f9', scale: window.devicePixelRatio||2,
+      useCORS: true, allowTaint: true,
+      onclone: doc => {
+        const clone = doc.getElementById('dash-capture');
+        if (clone) { clone.style.animation='none'; clone.style.opacity='1'; }
+      },
     });
-    const link = document.createElement('a');
-    link.download = 'refloe-production-dashboard.png';
-    link.href = canvas.toDataURL('image/png', 1.0);
-    link.click();
+    const a = document.createElement('a');
+    a.download = 'refloe-dashboard.png';
+    a.href = c.toDataURL('image/png', 1.0);
+    a.click();
   };
 
-  return (
-    <div className="dash-root">
-      <main className="dash-main">
-        <header className="dash-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h1 className="dash-title">Application Dashboard</h1>
-            <p className="dash-sub">
-              {isFetchingEmails ? <span className="scanning-text"><Icon.Sparkles /> AI is scanning your history...</span> : `${stats.total} unique companies tracked`}
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button className="nav-cta share-btn" onClick={handleShare}>
-              <Icon.TrendingUp /> Export Report
-            </button>
-            <button className="nav-cta" onClick={onSignOut}>
-              <Icon.LogOut /> Sign Out
-            </button>
-          </div>
-        </header>
+  const kpiCards = [
+    { label: 'Total Applied',    val: derived.kpis.total,         icon: <Ico.Briefcase/>, color: '#7c3aed', bg: '#f5f3ff' },
+    { label: 'Active Processes', val: derived.kpis.active,        icon: <Ico.TrendUp/>,   color: '#2563eb', bg: '#eff6ff' },
+    { label: 'Interview Rate',   val: `${derived.kpis.iRate}%`,   icon: <Ico.Target/>,    color: '#f59e0b', bg: '#fffbeb' },
+    { label: 'Offer Rate',       val: `${derived.kpis.oRate}%`,   icon: <Ico.Check/>,     color: '#059669', bg: '#ecfdf5' },
+  ];
 
-        {loadingDb ? (
-          <div className="loading-state">Aggregating pipeline metrics...</div>
+  return (
+    <div className="dash-page page">
+      <Nav
+        onLogoClick={() => {}}
+        actions={
+          <div className="dash-btns">
+            <button className="btn btn-secondary" onClick={handleExport}><Ico.Download/> Export</button>
+            <button className="btn btn-ghost" onClick={onSignOut}><Ico.LogOut/> Sign out</button>
+          </div>
+        }
+      />
+
+      <div className="dash-body">
+        <div className="dash-head">
+          <div>
+            <div className="dash-title">Application Dashboard</div>
+            <div className="dash-sub">
+              {isFetchingEmails
+                ? <span className="live-chip"><span className="live-dot"/><Ico.Spark/> AI scanning…</span>
+                : <><span className="live-chip"><span className="live-dot"/> Live</span> · {derived.kpis.total} companies tracked</>
+              }
+            </div>
+          </div>
+          <div className="dash-btns" style={{display:'none'}} />
+        </div>
+
+        {loading ? (
+          <div className="state-box"><div className="spinner"/><p>Loading your pipeline…</p></div>
         ) : apps.length === 0 ? (
-          <div className="empty-state">
-            <Icon.Inbox />
-            <h2>Awaiting Data Ingestion</h2>
+          <div className="state-box">
+            <div className="state-icon"><Ico.Inbox/></div>
+            <h2>No applications yet</h2>
+            <p>Refloe is monitoring your inbox. Your pipeline will appear here automatically as applications are detected.</p>
           </div>
         ) : (
-          <div className="pipeline-view" id="shareable-dashboard" style={{ padding: '1.5rem', borderRadius: '1rem', background: 'var(--bg)' }}>
-            <div className="kpi-grid">
-              <div className="kpi-card">
-                <div className="kpi-icon" style={{ background: 'rgba(96, 165, 250, 0.15)', color: '#60a5fa' }}><Icon.Briefcase /></div>
-                <div className="kpi-data">
-                  <span className="kpi-label">Total Applications</span>
-                  <span className="kpi-val">{stats.total}</span>
+          <div id="dash-capture" style={{display:'flex',flexDirection:'column',gap:'1.1rem'}}>
+
+            {/* KPIs */}
+            <div className="kpi-row">
+              {kpiCards.map(k => (
+                <div className="kpi-card" key={k.label}>
+                  <div className="kpi-icon" style={{background:k.bg,color:k.color}}>{k.icon}</div>
+                  <div className="kpi-data">
+                    <div className="kpi-val">{k.val}</div>
+                    <div className="kpi-lbl">{k.label}</div>
+                  </div>
                 </div>
-              </div>
-              <div className="kpi-card">
-                <div className="kpi-icon" style={{ background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa' }}><Icon.TrendingUp /></div>
-                <div className="kpi-data">
-                  <span className="kpi-label">Active Processes</span>
-                  <span className="kpi-val">{stats.active}</span>
-                </div>
-              </div>
-              <div className="kpi-card">
-                <div className="kpi-icon" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}><Icon.Target /></div>
-                <div className="kpi-data">
-                  <span className="kpi-label">Interview Rate</span>
-                  <span className="kpi-val">{stats.interviewRate}%</span>
-                </div>
-              </div>
-              <div className="kpi-card">
-                <div className="kpi-icon" style={{ background: 'rgba(52, 211, 153, 0.15)', color: '#34d399' }}><Icon.CheckCircle /></div>
-                <div className="kpi-data">
-                  <span className="kpi-label">Offer Rate</span>
-                  <span className="kpi-val">{stats.offerRate}%</span>
-                </div>
-              </div>
+              ))}
             </div>
 
-            <div className="analytics-grid-prod">
-              <div className="chart-container-prod">
-                <h3 className="chart-title">Pipeline Funnel</h3>
-                <div className="chart-wrapper">
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={statusData} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+            {/* Charts */}
+            <div className="chart-grid">
+              <div className="panel">
+                <div className="panel-title">Pipeline Funnel</div>
+                <div className="chart-body">
+                  <ResponsiveContainer width="100%" height={230}>
+                    <BarChart data={derived.statusData} layout="vertical" margin={{top:0,right:20,left:0,bottom:0}}>
                       <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={85} tick={{ fill: '#9ca3af', fontSize: 13 }} />
-                      <Tooltip content={<CustomColorTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                      <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={28}>
-                        {statusData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
+                      <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={78} tick={{fill:'#a0a0bc',fontSize:12,fontFamily:'Figtree'}} />
+                      <Tooltip content={<ChartTip/>} cursor={{fill:'rgba(124,58,237,0.04)'}} />
+                      <Bar dataKey="count" radius={[0,5,5,0]} barSize={22}>
+                        {derived.statusData.map((e,i) => <Cell key={i} fill={e.color}/>)}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              <div className="chart-container-prod">
-                <h3 className="chart-title">Role Distribution</h3>
-                <div className="chart-wrapper">
-                  <ResponsiveContainer width="100%" height={260}>
+              <div className="panel">
+                <div className="panel-title">Role Distribution</div>
+                <div className="chart-body">
+                  <ResponsiveContainer width="100%" height={230}>
                     <PieChart>
-                      <Pie data={roleData} cx="50%" cy="45%" innerRadius={65} outerRadius={85} paddingAngle={5} dataKey="value">
-                        {roleData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />
-                        ))}
+                      <Pie data={derived.roleData} cx="50%" cy="42%" innerRadius={58} outerRadius={80} paddingAngle={3} dataKey="value">
+                        {derived.roleData.map((e,i) => <Cell key={i} fill={e.color} stroke="transparent"/>)}
                       </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '8px' }} itemStyle={{ color: '#f0f4ff' }} />
-                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '13px', color: '#9ca3af', paddingTop: '10px' }} />
+                      <Tooltip contentStyle={{background:'#fff',border:'1px solid #e2e2ec',borderRadius:10,fontFamily:'Figtree'}} itemStyle={{color:'#6b6b8a'}} />
+                      <Legend verticalAlign="bottom" height={32} iconType="circle" wrapperStyle={{fontSize:12,color:'#a0a0bc',fontFamily:'Figtree',paddingTop:8}} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              <div className="chart-container-prod">
-                <h3 className="chart-title">Role Archetypes</h3>
-                <div className="chart-wrapper">
-                  <ResponsiveContainer width="100%" height={260}>
-                    <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                      <PolarGrid stroke="#374151" />
-                      <PolarAngleAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 11 }} />
-                      <Radar name="Applications" dataKey="count" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.4} />
-                      <Tooltip contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '8px' }} itemStyle={{ color: '#f0f4ff' }} />
+              <div className="panel">
+                <div className="panel-title">Role Archetypes</div>
+                <div className="chart-body">
+                  <ResponsiveContainer width="100%" height={230}>
+                    <RadarChart cx="50%" cy="50%" outerRadius="68%" data={derived.radarData}>
+                      <PolarGrid stroke="#e2e2ec" />
+                      <PolarAngleAxis dataKey="subject" tick={{fill:'#a0a0bc',fontSize:11,fontFamily:'Figtree'}} />
+                      <Radar dataKey="count" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.15} strokeWidth={1.5} />
+                      <Tooltip contentStyle={{background:'#fff',border:'1px solid #e2e2ec',borderRadius:10,fontFamily:'Figtree'}} itemStyle={{color:'#6b6b8a'}} />
                     </RadarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              <div className="chart-container-prod span-full">
-                <h3 className="chart-title">Application Volume Over Time</h3>
-                <div className="chart-wrapper">
-                  <ResponsiveContainer width="100%" height={260}>
-                    <AreaChart data={timelineData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <div className="panel span2">
+                <div className="panel-title">Application Volume Over Time</div>
+                <div className="chart-body">
+                  <ResponsiveContainer width="100%" height={230}>
+                    <AreaChart data={derived.timeData} margin={{top:8,right:20,left:-8,bottom:0}}>
                       <defs>
-                        <linearGradient id="colorApps" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#60a5fa" stopOpacity={0} />
+                        <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.15}/>
+                          <stop offset="95%" stopColor="#7c3aed" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1f2937" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} dy={10} minTickGap={20} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} dx={-10} allowDecimals={false} />
-                      <Tooltip contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '8px' }} itemStyle={{ color: '#f0f4ff' }} />
-                      <Area type="monotone" dataKey="applications" stroke="#60a5fa" strokeWidth={3} fillOpacity={1} fill="url(#colorApps)" />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f2f2f6" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill:'#a0a0bc',fontSize:11,fontFamily:'Figtree'}} dy={6} minTickGap={20} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fill:'#a0a0bc',fontSize:11,fontFamily:'Figtree'}} dx={-4} allowDecimals={false} />
+                      <Tooltip contentStyle={{background:'#fff',border:'1px solid #e2e2ec',borderRadius:10,fontFamily:'Figtree'}} itemStyle={{color:'#6b6b8a'}} />
+                      <Area type="monotone" dataKey="applications" stroke="#7c3aed" strokeWidth={2} fill="url(#ag)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </div>
             </div>
 
-            {actionItems.length > 0 && (
-              <div className="action-panel-prod">
-                <h3 className="chart-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', color: '#fff' }}>
-                  <Icon.AlertCircle /> Critical Action Items (Past 7 Days)
-                </h3>
-                <div className="action-grid">
-                  {actionItems.map(item => (
-                    <div className="action-item" key={item.id}>
-                      <div className="action-item-header">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span className="action-company">{item.company}</span>
-                        </div>
-                        {item.deadline && <span className="action-date"><Icon.Calendar /> {item.deadline}</span>}
+            {/* Actions */}
+            {derived.actionItems.length > 0 && (
+              <div className="actions-panel">
+                <div className="ap-title"><Ico.Alert/> Action Required — Past 7 Days</div>
+                <div className="actions-grid">
+                  {derived.actionItems.map(item => (
+                    <div className="action-card" key={item.id}>
+                      <div className="ac-top">
+                        <span className="ac-co">{item.company}</span>
+                        {item.deadline && <span className="ac-date"><Ico.Cal/> {item.deadline}</span>}
                       </div>
-                      <p className="action-desc">{item.nextAction}</p>
+                      <p className="ac-desc">{item.nextAction}</p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            <div className="table-section">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <h3 className="chart-title" style={{ marginBottom: 0 }}>Application Master Log</h3>
-                <div className="search-box">
-                  <Icon.Search />
+            {/* Table */}
+            <div className="table-panel">
+              <div className="table-top">
+                <div className="panel-title" style={{marginBottom:0}}>Application Log</div>
+                <div className="search-bar">
+                  <Ico.Search />
                   <input
                     type="text"
-                    placeholder="Search roles, companies..."
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      setCurrentPage(1);
-                    }}
+                    placeholder="Search companies, roles…"
+                    value={search}
+                    onChange={e => { setSearch(e.target.value); setPage(1); }}
                   />
                 </div>
               </div>
 
-              <div className="table-container">
-                <table className="prod-table">
+              <div className="table-scroll">
+                <table className="dt">
                   <thead>
                     <tr>
-                      <th onClick={() => handleSort('company')} className="sortable-th">
-                        <div className="th-content">Company {sortConfig.key === 'company' && (sortConfig.direction === 'asc' ? <Icon.ChevronUp /> : <Icon.ChevronDown />)}</div>
-                      </th>
-                      <th onClick={() => handleSort('role')} className="sortable-th">
-                        <div className="th-content">Role {sortConfig.key === 'role' && (sortConfig.direction === 'asc' ? <Icon.ChevronUp /> : <Icon.ChevronDown />)}</div>
-                      </th>
-                      <th onClick={() => handleSort('status')} className="sortable-th">
-                        <div className="th-content">Status {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? <Icon.ChevronUp /> : <Icon.ChevronDown />)}</div>
-                      </th>
-                      <th onClick={() => handleSort('rawDate')} className="sortable-th">
-                        <div className="th-content">Date {sortConfig.key === 'rawDate' && (sortConfig.direction === 'asc' ? <Icon.ChevronUp /> : <Icon.ChevronDown />)}</div>
-                      </th>
-                      <th onClick={() => handleSort('location')} className="sortable-th">
-                        <div className="th-content">Location {sortConfig.key === 'location' && (sortConfig.direction === 'asc' ? <Icon.ChevronUp /> : <Icon.ChevronDown />)}</div>
-                      </th>
+                      {[{k:'company',l:'Company'},{k:'role',l:'Role'},{k:'status',l:'Status'},{k:'rawDate',l:'Date'},{k:'location',l:'Location'}].map(col => (
+                        <th key={col.k} className="th-sort" onClick={() => handleSort(col.k)}>
+                          <span className="th-inner">{col.l} <SortIco k={col.k}/></span>
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedApps.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                          No applications found matching your search.
-                        </td>
-                      </tr>
-                    ) : (
-                      paginatedApps.map(app => {
-                        const config = STATUS_CONFIG[app.status] || STATUS_CONFIG.applied;
-                        return (
-                          <tr key={app.id} title={app.summary ? `Summary: ${app.summary}` : ''}>
-                            <td className="font-medium text-white">{app.company}</td>
-                            <td>
-                              <div className="cell-flex-col">
-                                <span>{app.role}</span>
-                                <span className="sub-text">{app.type}</span>
-                              </div>
-                            </td>
-                            <td>
-                              <span className="status-badge-sm" style={{ backgroundColor: config.bg, color: config.color }}>
-                                {config.label} {app.stage && `• ${app.stage}`}
-                              </span>
-                            </td>
-                            <td className="sub-text">{app.date}</td>
-                            <td className="sub-text">{app.location || '-'}</td>
-                          </tr>
-                        );
-                      })
-                    )}
+                    {derived.paged.length === 0 ? (
+                      <tr><td colSpan={5} style={{textAlign:'center',padding:'2rem',color:'var(--faint)'}}>No results matching your search.</td></tr>
+                    ) : derived.paged.map(app => {
+                      const cfg = STATUS[app.status] || STATUS.applied;
+                      return (
+                        <tr key={app.id} title={app.summary||''}>
+                          <td><span className="td-co">{app.company}</span></td>
+                          <td>
+                            <div className="td-role-wrap">
+                              <span className="td-role-main">{app.role}</span>
+                              <span className="td-role-type">{app.type}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="s-tag" style={{background:cfg.bg,color:cfg.color,borderColor:cfg.border}}>
+                              {cfg.label}{app.stage ? ` · ${app.stage}` : ''}
+                            </span>
+                          </td>
+                          <td><span className="td-sm">{app.date}</span></td>
+                          <td><span className="td-sm">{app.location || '—'}</span></td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
-              {totalPages > 1 && (
+              {derived.pages > 1 && (
                 <div className="pagination">
-                  <span className="page-info">Page {currentPage} of {totalPages}</span>
-                  <div className="page-controls">
-                    <button
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      className="page-btn"
-                    >
-                      <Icon.ChevronLeft />
-                    </button>
-                    <button
-                      disabled={currentPage === totalPages}
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      className="page-btn"
-                    >
-                      <Icon.ChevronRight />
-                    </button>
+                  <span className="pg-info">Page {page} of {derived.pages}</span>
+                  <div className="pg-btns">
+                    <button className="pg-btn" disabled={page===1} onClick={()=>setPage(p=>Math.max(1,p-1))}><Ico.ChevL/></button>
+                    <button className="pg-btn" disabled={page===derived.pages} onClick={()=>setPage(p=>Math.min(derived.pages,p+1))}><Ico.ChevR/></button>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="watermark" style={{ display: 'none', textAlign: 'center', marginTop: '2rem', color: '#4f8ef7', fontWeight: 'bold' }}>
-              Production Report - Generated by Refloe
-            </div>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }
 
+// ── App ───────────────────────────────────────────────────────────────────────
+
 function AppContent() {
   const [session, setSession] = useState(() => {
-    const saved = localStorage.getItem('Refloe_profile');
-    return saved ? JSON.parse(saved) : null;
+    try { const s = localStorage.getItem('Refloe_profile'); return s ? JSON.parse(s) : null; } catch { return null; }
   });
   const [tempAuth, setTempAuth] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [isFetchingEmails, setIsFetchingEmails] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
-  const handleGetStarted = () => {
+  const handleGmail = () => {
     if (!window.google) return;
-
     const client = window.google.accounts.oauth2.initCodeClient({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
       scope: 'openid email profile https://www.googleapis.com/auth/gmail.readonly',
-      ux_mode: 'popup',
-      access_type: 'offline',
-      prompt: 'consent',
-      callback: async (response) => {
-        if (response.code) {
-          setLoading(true);
-          try {
-            const { data, error: funcError } = await supabase.functions.invoke('auth-handler', {
-              body: { code: response.code, action: 'google-login' }
-            });
-
-            if (funcError || data?.error) throw new Error(funcError?.message || data?.error);
-
-            if (data.is_new_user) {
-              setTempAuth(data);
-            } else {
-              if (data.session) {
-                await supabase.auth.setSession({
-                  access_token: data.session.access_token,
-                  refresh_token: data.session.refresh_token
-                });
-              }
-              setSession(data.user);
-              localStorage.setItem('Refloe_profile', JSON.stringify(data.user));
-            }
-          } catch (err) {
-            console.error("Auth Error:", err.message);
-          } finally {
-            setLoading(false);
+      ux_mode: 'popup', access_type: 'offline', prompt: 'consent',
+      callback: async res => {
+        if (!res.code) return;
+        setLoading(true);
+        try {
+          const { data, error } = await supabase.functions.invoke('auth-handler', { body: { code: res.code, action: 'google-login' } });
+          if (error || data?.error) throw new Error(error?.message || data?.error);
+          if (data.is_new_user) { setTempAuth(data); }
+          else {
+            if (data.session) await supabase.auth.setSession({ access_token: data.session.access_token, refresh_token: data.session.refresh_token });
+            setSession(data.user); localStorage.setItem('Refloe_profile', JSON.stringify(data.user));
           }
-        }
+        } catch (e) { console.error('Auth:', e.message); }
+        finally { setLoading(false); }
       },
     });
-
     client.requestCode();
   };
 
-  const handleOutlookLogin = () => {
-    const client_id = import.meta.env.VITE_MICROSOFT_CLIENT_ID;
-    const redirect_uri = import.meta.env.VITE_REDIRECT_URI;
-
-    if (!client_id || !redirect_uri) {
-      console.error("Missing Microsoft Client ID or Redirect URI in environment variables.");
-      alert("Configuration Error: Missing Client ID or Redirect URI.");
-      return;
-    }
-
-    const encoded_redirect = encodeURIComponent(redirect_uri);
-    const scope = encodeURIComponent("openid profile email Mail.Read offline_access");
-    const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${client_id}&response_type=code&redirect_uri=${encoded_redirect}&response_mode=query&scope=${scope}&prompt=consent`;
-
-    const width = 600;
-    const height = 700;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-
-    const popup = window.open(authUrl, "outlook_login", `width=${width},height=${height},left=${left},top=${top}`);
-
-    if (!popup) {
-      alert("Popup blocked. Please allow popups for this site.");
-      return;
-    }
-
+  const handleOutlook = () => {
+    const cid = import.meta.env.VITE_MICROSOFT_CLIENT_ID;
+    const ruri = import.meta.env.VITE_REDIRECT_URI;
+    if (!cid || !ruri) { alert('Configuration Error: Missing Client ID or Redirect URI.'); return; }
+    const url = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${cid}&response_type=code&redirect_uri=${encodeURIComponent(ruri)}&response_mode=query&scope=${encodeURIComponent('openid profile email Mail.Read offline_access')}&prompt=consent`;
+    const w=600,h=700;
+    const popup = window.open(url,'ms_login',`width=${w},height=${h},left=${window.screenX+(window.outerWidth-w)/2},top=${window.screenY+(window.outerHeight-h)/2}`);
+    if (!popup) { alert('Popup blocked.'); return; }
     setLoading(true);
-
-    const checkPayload = setInterval(async () => {
+    const iv = setInterval(async () => {
       try {
-        if (popup.closed) {
-          clearInterval(checkPayload);
-          setLoading(false);
-          return;
+        if (popup.closed) { clearInterval(iv); setLoading(false); return; }
+        const cu = popup.location.href;
+        if (!cu || (!cu.includes('code=') && !cu.includes('error='))) return;
+        const cm = cu.match(/code=([^&]+)/);
+        popup.close(); clearInterval(iv);
+        if (!cm) { setLoading(false); return; }
+        const { data, error } = await supabase.functions.invoke('auth-handler', { body: { code: decodeURIComponent(cm[1]), action: 'outlook-login' } });
+        if (error || data?.error) { console.error(error?.message||data?.error); setLoading(false); return; }
+        if (data.is_new_user) { setTempAuth(data); }
+        else {
+          if (data.session) await supabase.auth.setSession({ access_token: data.session.access_token, refresh_token: data.session.refresh_token });
+          setSession(data.user); localStorage.setItem('Refloe_profile', JSON.stringify(data.user));
         }
-
-        const currentUrl = popup.location.href;
-
-        if (currentUrl && (currentUrl.includes("code=") || currentUrl.includes("error="))) {
-          const codeMatch = currentUrl.match(/code=([^&]+)/);
-          const errorMatch = currentUrl.match(/error=([^&]+)/);
-          const errorDescMatch = currentUrl.match(/error_description=([^&]+)/);
-
-          const code = codeMatch ? decodeURIComponent(codeMatch[1]) : null;
-          const error = errorMatch ? decodeURIComponent(errorMatch[1]) : null;
-          const errorDesc = errorDescMatch ? decodeURIComponent(errorDescMatch[1].replace(/\+/g, ' ')) : 'No description';
-
-          popup.close();
-          clearInterval(checkPayload);
-
-          if (error) {
-            console.error("Microsoft Auth Error:", error, errorDesc);
-            alert(`Microsoft Sign-In Error: ${errorDesc}`);
-            setLoading(false);
-            return;
-          }
-
-          if (code) {
-            const { data, error: funcError } = await supabase.functions.invoke('auth-handler', {
-              body: { code, action: 'outlook-login' }
-            });
-
-            if (funcError || data?.error) {
-              console.error("Auth Error:", funcError?.message || data?.error);
-              setLoading(false);
-              return;
-            }
-
-            if (data.is_new_user) {
-              setTempAuth(data);
-            } else {
-              if (data.session) {
-                await supabase.auth.setSession({
-                  access_token: data.session.access_token,
-                  refresh_token: data.session.refresh_token
-                });
-              }
-              setSession(data.user);
-              localStorage.setItem('Refloe_profile', JSON.stringify(data.user));
-            }
-
-            setLoading(false);
-          }
-        }
-      } catch (e) {
-      }
+        setLoading(false);
+      } catch (_) {}
     }, 500);
   };
 
-  const handleConfirmHistory = async (months) => {
-    setLoading(true);
-    setIsFetchingEmails(true);
-
+  const handleConfirm = async months => {
+    setLoading(true); setScanning(true);
     try {
-      if (tempAuth.session) {
-        await supabase.auth.setSession({
-          access_token: tempAuth.session.access_token,
-          refresh_token: tempAuth.session.refresh_token
-        });
-      }
-
-      const activeUser = tempAuth.user;
-      
-      localStorage.setItem('Refloe_profile', JSON.stringify(activeUser));
-      setSession(activeUser);
-      setTempAuth(null);
-      setLoading(false);
-
-      supabase.functions.invoke('auth-handler', {
-        body: {
-          action: 'trigger-scan',
-          userId: activeUser.id,
-          months
-        }
-      }).then(({ error: scanError }) => {
-        if (scanError) console.error("Background Scan Error:", scanError);
-      }).catch(err => {
-        console.error("Background scan invocation failed:", err);
-      }).finally(() => {
-        setIsFetchingEmails(false);
-      });
-
-    } catch (err) {
-      console.error("History Selection Error:", err.message);
-      setLoading(false);
-      setIsFetchingEmails(false);
-    }
+      if (tempAuth.session) await supabase.auth.setSession({ access_token: tempAuth.session.access_token, refresh_token: tempAuth.session.refresh_token });
+      const user = tempAuth.user;
+      localStorage.setItem('Refloe_profile', JSON.stringify(user));
+      setSession(user); setTempAuth(null); setLoading(false);
+      supabase.functions.invoke('auth-handler', { body: { action: 'trigger-scan', userId: user.id, months } })
+        .catch(console.error)
+        .finally(() => setScanning(false));
+    } catch (e) { console.error(e.message); setLoading(false); setScanning(false); }
   };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('Refloe_profile');
-    setSession(null);
-    setTempAuth(null);
+    setSession(null); setTempAuth(null);
   };
 
-  if (tempAuth) {
-    return <HistoryPage onConfirm={handleConfirmHistory} loading={loading} />;
-  }
-
-  if (session) {
-    return <Dashboard session={session} onSignOut={handleSignOut} isFetchingEmails={isFetchingEmails} />;
-  }
+  if (tempAuth) return <HistoryPage onConfirm={handleConfirm} loading={loading} />;
+  if (session)  return <Dashboard session={session} onSignOut={handleSignOut} isFetchingEmails={scanning} />;
 
   return (
     <Routes>
-      <Route path="/" element={<HeroPage onGetStarted={handleGetStarted} onOutlookLogin={handleOutlookLogin} loading={loading} />} />
+      <Route path="/"        element={<HeroPage onGmail={handleGmail} onOutlook={handleOutlook} loading={loading} />} />
       <Route path="/privacy" element={<PrivacyPage />} />
-      <Route path="/terms" element={<TermsPage />} />
-      <Route path="*" element={<HeroPage onGetStarted={handleGetStarted} onOutlookLogin={handleOutlookLogin} loading={loading} />} />
+      <Route path="/terms"   element={<TermsPage />} />
+      <Route path="*"        element={<HeroPage onGmail={handleGmail} onOutlook={handleOutlook} loading={loading} />} />
     </Routes>
   );
 }
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
-  );
+  return <BrowserRouter><AppContent /></BrowserRouter>;
 }
